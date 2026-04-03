@@ -254,7 +254,12 @@
                     return `
                     <tr class="border-b border-[#2a2a2a] hover:bg-[#2a2a2a] transition-colors rounded-lg">
                         <td class="py-3 px-4 font-medium text-[#ffffff] rounded-l-lg whitespace-nowrap flex items-center justify-between">
-                            <span>${t.name}</span>
+                            <div class="flex items-center gap-2">
+                                <span>${t.name}</span>
+                                <button onclick="confirmDeleteTerritory('${t.id}', '${t.name}')" class="text-red-500 hover:text-red-700 p-1" title="Eliminar Territorio permanentemente">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
                             ${t.assignedTo ? `
                             <button onclick="unassignTerritory('${t.id}', '${t.name}')" class="text-red-400 hover:text-red-500 p-1 ml-2" title="Quitar asignación (Recuperar)">
                                 <i class="fa-solid fa-user-xmark"></i>
@@ -370,25 +375,25 @@
                         </div>
                         <div id="user-form-container" class="${userHidden}">
                             <div class="border-t border-[#3a3a3a] mt-6 pt-6">
-                                <form id="createUserForm" class="space-y-5 max-w-xl mx-auto">
-                                    <input type="text" id="newUsername" placeholder="Nombre de usuario" class="w-full px-5 py-3 border border-[#3a3a3a] rounded-xl bg-[#3a3a3a] text-[#ffffff] placeholder-[#b3b3b3] focus:outline-none focus:ring-2 focus:ring-[#f5c66d]" required>
-                                    <input type="text" id="newPassword" placeholder="Contraseña" class="w-full px-5 py-3 border border-[#3a3a3a] rounded-xl bg-[#3a3a3a] text-[#ffffff] placeholder-[#b3b3b3] focus:outline-none focus:ring-2 focus:ring-[#f5c66d]" required>
-                                    <button type="submit" class="w-full bg-[#f5c66d] text-[#1e1e1e] font-extrabold py-3 rounded-xl hover:bg-[#ffdf91] transition duration-200">Crear Publicador</button>
-                                </form>
-                            </div>
+                <!-- Modal de Info -->
+                <div id="infoModal" class="hidden fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4">
+                    <div class="bg-[#121212] rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-[#2a2a2a]">
+                        <h3 id="modalTitle" class="text-xl font-extrabold mb-6 border-b border-[#2a2a2a] pb-4 text-[#ffffff]">Info</h3>
+                        <div id="modalContent" class="text-sm space-y-4 text-[#ffffff]"></div>
+                        <div class="mt-8 text-right">
+                            <button onclick="document.getElementById('infoModal').classList.add('hidden')" class="bg-[#f5c66d] text-[#1e1e1e] font-extrabold px-6 py-2 rounded-xl hover:bg-[#ffdf91] transition">Cerrar</button>
                         </div>
                     </div>
+                </div>
 
-                    <!-- 5. Publicadores (Desplegable) -->
-                    <div class="bg-[#2a2a2a] p-8 rounded-2xl shadow-md border border-[#3a3a3a]">
-                        <div class="flex justify-between items-center cursor-pointer group" onclick="togglePublishersAccordion()">
-                            <h3 class="text-xl font-bold text-[#ffffff] group-hover:text-[#add8e6] transition-colors"><i class="fa-solid fa-users text-[#add8e6] mr-2"></i> Publicadores</h3>
-                            <i id="publishers-chevron" class="fa-solid ${pubChevron} text-[#b3b3b3] group-hover:text-[#ffffff] transition-colors text-lg"></i>
-                        </div>
-                        <div id="publishers-container" class="${pubHidden}">
-                            <div class="border-t border-[#3a3a3a] mt-6 pt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                ${publishersCardsHtml}
-                            </div>
+                <!-- Modal de Confirmación para Eliminar -->
+                <div id="deleteModal" class="hidden fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4">
+                    <div class="bg-[#121212] rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-[#2a2a2a]">
+                        <h3 class="text-xl font-extrabold mb-4 text-[#ffffff]"><i class="fa-solid fa-triangle-exclamation text-red-500 mr-2"></i> Eliminar Territorio</h3>
+                        <p id="deleteModalText" class="text-sm text-[#b3b3b3] mb-8">¿Estás seguro?</p>
+                        <div class="flex justify-end gap-4">
+                            <button onclick="document.getElementById('deleteModal').classList.add('hidden')" class="text-[#b3b3b3] hover:text-[#ffffff] transition font-bold px-4 py-2">Cancelar</button>
+                            <button id="confirmDeleteBtn" class="bg-red-600 text-white font-extrabold px-6 py-2 rounded-xl hover:bg-red-700 transition">Eliminar</button>
                         </div>
                     </div>
                 </div>
@@ -418,20 +423,16 @@
 
                 if (/^\d+$/.test(name)) { name = name.padStart(2, '0'); }
 
-                // ⚠️ FIX: Regex menos estricta para aceptar distintos formatos de números, saltos de línea y espacios
-                const matches = rawNumbers.match(/[\d\-\s]+/g);
-                
-                if (!matches || matches.join('').replace(/\D/g, '').length < 6) { 
-                    alert("Por favor, asegúrate de pegar al menos un número telefónico válido."); 
-                    return; 
-                }
+                // Separar el texto pegado por saltos de línea (Excel/Word), tabulaciones, comas o puntos y coma
+                const rawArray = rawNumbers.split(/[\n\r,;\t]+/);
 
-                // Limpiar los números extraídos y dejarlos con un formato prolijo
-                let cleanNumbers = matches.map(m => m.trim()).filter(m => m.replace(/\D/g, '').length >= 6);
-                
-                // Si la lista resulta vacía tras limpiar
-                if(cleanNumbers.length === 0){
-                    alert("No se detectaron números válidos tras filtrar."); 
+                // Limpiar espacios y verificar que cada elemento tenga al menos 6 dígitos reales
+                let cleanNumbers = rawArray
+                    .map(line => line.trim())
+                    .filter(line => line.replace(/\D/g, '').length >= 6);
+
+                if (cleanNumbers.length === 0) { 
+                    alert("Por favor, asegúrate de pegar al menos un número telefónico válido."); 
                     return; 
                 }
 
@@ -724,6 +725,22 @@
         };
         window.openTerritory = (id) => { currentViewTerritoryId = id; renderApp(); };
         window.closeTerritory = () => { currentViewTerritoryId = null; renderApp(); };
+
+        window.confirmDeleteTerritory = (tId, tName) => {
+            document.getElementById('deleteModalText').innerHTML = `¿Estás seguro de que deseas eliminar permanentemente el territorio <b>${tName}</b>? Esta acción no se puede deshacer.`;
+            const btn = document.getElementById('confirmDeleteBtn');
+            btn.onclick = () => executeDeleteTerritory(tId);
+            document.getElementById('deleteModal').classList.remove('hidden');
+        };
+
+        window.executeDeleteTerritory = async (tId) => {
+            document.getElementById('deleteModal').classList.add('hidden');
+            try {
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'territories', tId));
+            } catch (err) {
+                console.error("Error eliminando territorio:", err);
+            }
+        };
 
         // ---- LÓGICA DE HUELLA DACTILAR (WebAuthn) ----
         window.registerBiometric = async () => {
