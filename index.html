@@ -174,11 +174,16 @@
                             <input type="text" id="username" placeholder="Usuario" class="w-full px-5 py-3 border border-[#3a3a3a] rounded-xl bg-[#3a3a3a] text-[#ffffff] placeholder-[#b3b3b3] focus:outline-none focus:ring-2 focus:ring-[#f5c66d]" required>
                         </div>
                         <div>
-                            <input type="password" id="password" placeholder="Contraseña" class="w-full px-5 py-3 border border-[#3a3a3a] rounded-xl bg-[#3a3a3a] text-[#ffffff] placeholder-[#b3b3b3] focus:outline-none focus:ring-2 focus:ring-[#f5c66d]" required>
+                            <input type="password" id="password" placeholder="Contraseña" class="w-full px-5 py-3 border border-[#3a3a3a] rounded-xl bg-[#3a3a3a] text-[#ffffff] placeholder-[#b3b3b3] focus:outline-none focus:ring-2 focus:ring-[#f5c66d]">
                         </div>
-                        <button type="submit" class="w-full bg-[#f5c66d] text-[#1e1e1e] font-extrabold py-3 px-4 rounded-xl hover:bg-[#ffdf91] transition duration-200">
-                            Ingresar
-                        </button>
+                        <div class="flex gap-4">
+                            <button type="submit" class="w-full bg-[#f5c66d] text-[#1e1e1e] font-extrabold py-3 px-4 rounded-xl hover:bg-[#ffdf91] transition duration-200">
+                                Ingresar
+                            </button>
+                            <button type="button" onclick="loginBiometric()" class="bg-[#3a3a3a] text-[#add8e6] px-5 rounded-xl border border-[#4a4a4a] hover:bg-[#4a4a4a] transition duration-200 shadow-lg" title="Ingresar con Huella">
+                                <i class="fa-solid fa-fingerprint text-2xl"></i>
+                            </button>
+                        </div>
                     </form>
                     <p id="loginError" class="text-red-400 text-sm mt-5 text-center hidden"></p>
                 </div>
@@ -193,6 +198,7 @@
                 if (user) {
                     loggedInAppUser = user;
                     currentViewTerritoryId = null;
+                    localStorage.setItem('savedSessionId', user.id); // Guarda la sesión en el celular
                     renderApp();
                 } else {
                     const err = document.getElementById('loginError');
@@ -516,11 +522,37 @@
                 `).join('');
             }
 
+            // HTML de configuración de Huella Dactilar
+            let biometricHtml = '';
+            if (!loggedInAppUser.biometricId) {
+                biometricHtml = `
+                <div class="mt-6 bg-[#1e1e1e] p-4 rounded-xl border border-[#3a3a3a] flex items-center justify-between shadow-inner">
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-fingerprint text-[#add8e6] text-3xl"></i>
+                        <div class="text-left">
+                            <p class="text-sm font-bold text-[#ffffff]">Acceso rápido</p>
+                            <p class="text-[11px] text-[#b3b3b3]">Usa tu huella para entrar la próxima vez</p>
+                        </div>
+                    </div>
+                    <button onclick="registerBiometric()" class="bg-[#add8e6] text-[#1e1e1e] px-4 py-2 rounded-lg text-xs font-extrabold hover:bg-[#c4e4f0] transition">Vincular</button>
+                </div>`;
+            } else {
+                biometricHtml = `
+                <div class="mt-6 bg-[#1e1e1e] p-4 rounded-xl border border-[#cde7ac] flex items-center gap-3 shadow-inner">
+                    <i class="fa-solid fa-fingerprint text-[#cde7ac] text-3xl"></i>
+                    <div class="text-left">
+                        <p class="text-sm font-bold text-[#cde7ac]">Huella vinculada</p>
+                        <p class="text-[11px] text-[#b3b3b3]">Puedes entrar sin contraseña desde este dispositivo</p>
+                    </div>
+                </div>`;
+            }
+
             container.innerHTML = `
                 <div class="space-y-8">
                     <!-- Mensaje de bienvenida -->
                     <div class="px-2 pt-2">
                         <h1 class="text-3xl font-extrabold text-[#ffffff]">Hola ${loggedInAppUser.username}!</h1>
+                        ${biometricHtml}
                     </div>
 
                     <!-- Cuadro principal -->
@@ -684,9 +716,76 @@
             }
         };
 
-        window.logout = () => { loggedInAppUser = null; currentViewTerritoryId = null; renderApp(); };
+        window.logout = () => { 
+            loggedInAppUser = null; 
+            currentViewTerritoryId = null; 
+            localStorage.removeItem('savedSessionId'); // Elimina la sesión al salir
+            renderApp(); 
+        };
         window.openTerritory = (id) => { currentViewTerritoryId = id; renderApp(); };
         window.closeTerritory = () => { currentViewTerritoryId = null; renderApp(); };
+
+        // ---- LÓGICA DE HUELLA DACTILAR (WebAuthn) ----
+        window.registerBiometric = async () => {
+            if (!window.PublicKeyCredential) {
+                alert("Tu navegador o dispositivo no soporta el acceso con huella.");
+                return;
+            }
+            try {
+                const challenge = new Uint8Array(32); window.crypto.getRandomValues(challenge);
+                const userId = new Uint8Array(16); window.crypto.getRandomValues(userId);
+
+                const credential = await navigator.credentials.create({
+                    publicKey: {
+                        challenge,
+                        rp: { name: "Teléfonos App" },
+                        user: { id: userId, name: loggedInAppUser.username, displayName: loggedInAppUser.username },
+                        pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
+                        authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
+                        timeout: 60000
+                    }
+                });
+
+                const credentialId = btoa(String.fromCharCode.apply(null, new Uint8Array(credential.rawId)));
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'users', loggedInAppUser.id), { biometricId: credentialId });
+                
+                alert("¡Huella vinculada con éxito! Ya puedes entrar usando el ícono de la huella.");
+            } catch (error) {
+                console.error(error);
+                alert("No se pudo configurar la huella. Requiere un celular compatible y estar usando conexión segura (HTTPS).");
+            }
+        };
+
+        window.loginBiometric = async () => {
+            const uInput = document.getElementById('username').value.trim();
+            if(!uInput) { alert("Primero escribe tu nombre de usuario para identificar tu huella."); return; }
+            
+            const user = allUsers.find(u => u.username.toLowerCase() === uInput.toLowerCase());
+            if(!user) { alert("Usuario no encontrado."); return; }
+            if(!user.biometricId) { alert("No has vinculado ninguna huella. Ingresa con tu contraseña primero y dale a 'Vincular' en tu menú."); return; }
+
+            try {
+                const challenge = new Uint8Array(32); window.crypto.getRandomValues(challenge);
+                const rawId = Uint8Array.from(atob(user.biometricId), c => c.charCodeAt(0));
+
+                await navigator.credentials.get({
+                    publicKey: {
+                        challenge,
+                        allowCredentials: [{ type: "public-key", id: rawId }],
+                        userVerification: "required"
+                    }
+                });
+
+                // Si pasamos esta línea, la huella es correcta
+                loggedInAppUser = user;
+                currentViewTerritoryId = null;
+                localStorage.setItem('savedSessionId', user.id);
+                renderApp();
+            } catch(err) {
+                console.error(err);
+                alert("Verificación cancelada o fallida.");
+            }
+        };
 
         window.unassignTerritory = (tId, tName) => {
             if(confirm(`¿Seguro que deseas quitarle el Territorio ${tName} al publicador asignado? Volverá a estar libre, pendiente y su progreso regresará a cero.`)) {
@@ -817,6 +916,16 @@
                 
                 if (users.length > 0) {
                     allUsers = users;
+                    
+                    // Restaurar sesión guardada automáticamente para evitar poner contraseñas
+                    if (!loggedInAppUser) {
+                        const savedId = localStorage.getItem('savedSessionId');
+                        if (savedId) {
+                            const found = allUsers.find(u => u.id === savedId);
+                            if (found) loggedInAppUser = found;
+                        }
+                    }
+
                     if (loggedInAppUser) {
                         const updatedMe = allUsers.find(u => u.id === loggedInAppUser.id);
                         if (updatedMe) loggedInAppUser = updatedMe;
