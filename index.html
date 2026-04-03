@@ -61,7 +61,6 @@
         document.head.insertAdjacentHTML('beforeend', `<link rel="manifest" href="${manifestURL}">`);
         
         // Registro del Service Worker para que sea instalable (PWA)
-        // Solo se ejecuta en entornos web reales (http/https), previniendo errores en la vista previa (blob:)
         if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.protocol === 'http:')) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js').catch(console.error);
@@ -410,18 +409,34 @@
 
                 if (/^\d+$/.test(name)) { name = name.padStart(2, '0'); }
 
-                const regex = /\d{3}-?\d{4}/g;
-                const matches = rawNumbers.match(regex);
-                if (!matches || matches.length === 0) { alert("No se detectaron números válidos (deben ser de 7 dígitos)."); return; }
+                // ⚠️ FIX: Regex menos estricta para aceptar distintos formatos de números, saltos de línea y espacios
+                const matches = rawNumbers.match(/[\d\-\s]+/g);
+                
+                if (!matches || matches.join('').replace(/\D/g, '').length < 6) { 
+                    alert("Por favor, asegúrate de pegar al menos un número telefónico válido."); 
+                    return; 
+                }
 
-                const numbers = matches.map(num => ({ phone: num, result: "-", checked1: false, checked2: false }));
+                // Limpiar los números extraídos y dejarlos con un formato prolijo
+                let cleanNumbers = matches.map(m => m.trim()).filter(m => m.replace(/\D/g, '').length >= 6);
+                
+                // Si la lista resulta vacía tras limpiar
+                if(cleanNumbers.length === 0){
+                    alert("No se detectaron números válidos tras filtrar."); 
+                    return; 
+                }
+
+                const numbers = cleanNumbers.map(num => ({ phone: num, result: "-", checked1: false, checked2: false }));
 
                 try {
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'territories'), { name: name, assignedTo: null, status: 'Pendiente', numbers: numbers });
                     alert(`¡${name} creado con éxito! Se cargaron ${numbers.length} números.`);
                     document.getElementById('newTerritoryName').value = '';
                     document.getElementById('newTerritoryNumbers').value = '';
-                } catch (err) { alert("Error al cargar en la base de datos."); }
+                } catch (err) { 
+                    console.error("Firebase Error:", err);
+                    alert("Error al cargar en la base de datos de Firebase. Verifica la conexión o las reglas de tu consola."); 
+                }
             });
         };
 
@@ -768,6 +783,21 @@
             alert("Bóveda secreta: Territorios restaurados.");
         };
 
+        window.generateMockTerritories = async () => {
+            for (let i = 1; i <= 10; i++) {
+                const numbers = [];
+                for (let j = 0; j < 20; j++) {
+                    numbers.push({
+                        phone: `555-${Math.floor(Math.random() * 900 + 100)}-${Math.floor(Math.random() * 9000 + 1000)}`,
+                        result: "-", checked1: false, checked2: false
+                    });
+                }
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'territories'), {
+                    name: i.toString().padStart(2, '0'), assignedTo: null, status: 'Pendiente', numbers: numbers
+                });
+            }
+        };
+
         // ---- INICIALIZACIÓN Y SUSCRIPCIONES A FIREBASE ----
         const initDataListeners = () => {
             const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'users');
@@ -803,7 +833,7 @@
             firebaseUser = user;
             if (user) { 
                 initDataListeners(); 
-                renderApp(); // <--- ¡Esta es la línea que faltaba para arrancar la pantalla!
+                renderApp(); 
             }
         });
 
