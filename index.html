@@ -247,16 +247,18 @@
 
                     return `
                     <tr class="border-b border-[#2a2a2a] hover:bg-[#2a2a2a] transition-colors rounded-lg">
-                        <td class="py-3 px-4 font-medium text-[#ffffff] rounded-l-lg whitespace-nowrap flex items-center">
+                        <td class="py-3 px-4 font-medium text-[#ffffff] rounded-l-lg whitespace-nowrap flex items-center justify-between">
                             <span>${t.name}</span>
-                            <button onclick="showTerritoryInfo('${t.id}')" class="text-[#b3b3b3] hover:text-[#ffffff] p-1 ml-3" title="Ver Info">
-                                <i class="fa-solid fa-circle-info"></i>
+                            ${t.assignedTo ? `
+                            <button onclick="unassignTerritory('${t.id}', '${t.name}')" class="text-red-400 hover:text-red-500 p-1 ml-2" title="Quitar asignación (Recuperar)">
+                                <i class="fa-solid fa-user-xmark"></i>
                             </button>
+                            ` : '<div class="w-6"></div>'}
                         </td>
                         <td class="py-3 px-4 pr-5">${progressHtml}</td>
                         <td class="py-3 px-4 rounded-r-lg">
-                            <select onchange="assignTerritory('${t.id}', this.value)" class="border border-[#3a3a3a] rounded-lg p-2 text-sm bg-[#1e1e1e] text-[#ffffff] w-full min-w-[120px] focus:ring-1 focus:ring-[#f5c66d] focus:border-[#f5c66d] outline-none cursor-pointer">
-                                <option value="" class="text-[#b3b3b3]">-</option>
+                            <select id="assign-${t.id}" autocomplete="off" onchange="assignTerritory('${t.id}', this.value)" class="border border-[#3a3a3a] rounded-lg p-2 text-sm bg-[#1e1e1e] text-[#ffffff] w-full min-w-[120px] focus:ring-1 focus:ring-[#f5c66d] focus:border-[#f5c66d] outline-none cursor-pointer">
+                                <option value="" ${!t.assignedTo ? 'selected' : ''} class="text-[#b3b3b3]">-</option>
                                 ${userOptionsHtml}
                             </select>
                         </td>
@@ -272,7 +274,13 @@
                     let statusColor = "text-[#b3b3b3]";
                     if(t.status === 'Completado') statusColor = "text-[#cde7ac]";
                     if(t.status === 'En curso') statusColor = "text-[#f5c66d]";
-                    return `<li class="text-xs flex justify-between border-b border-[#3a3a3a] py-1.5 last:border-0"><span class="text-[#ffffff] font-bold">Terr. ${t.name}</span> <span class="${statusColor}">${t.status}</span></li>`;
+                    return `
+                    <li class="text-xs flex justify-between items-center border-b border-[#3a3a3a] py-1.5 last:border-0">
+                        <div><span class="text-[#ffffff] font-bold">Terr. ${t.name}</span> <span class="${statusColor} ml-1">${t.status}</span></div>
+                        <button onclick="unassignTerritory('${t.id}', '${t.name}')" class="text-red-400 hover:text-red-500 p-1" title="Quitar asignación">
+                            <i class="fa-solid fa-circle-minus"></i>
+                        </button>
+                    </li>`;
                 }).join('');
                 
                 return `
@@ -378,18 +386,13 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- Modal de Info -->
-                <div id="infoModal" class="hidden fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4">
-                    <div class="bg-[#121212] rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-[#2a2a2a]">
-                        <h3 id="modalTitle" class="text-xl font-extrabold mb-6 border-b border-[#2a2a2a] pb-4 text-[#ffffff]">Info</h3>
-                        <div id="modalContent" class="text-sm space-y-4 text-[#ffffff]"></div>
-                        <div class="mt-8 text-right">
-                            <button onclick="document.getElementById('infoModal').classList.add('hidden')" class="bg-[#f5c66d] text-[#1e1e1e] font-extrabold px-6 py-2 rounded-xl hover:bg-[#ffdf91] transition">Cerrar</button>
-                        </div>
-                    </div>
-                </div>
             `;
+
+            // FIX: Forzar actualización visual de los selectores para evitar que el navegador retenga el valor viejo
+            allTerritories.forEach(t => {
+                const selectEl = document.getElementById(`assign-${t.id}`);
+                if (selectEl) selectEl.value = t.assignedTo || "";
+            });
 
             // Listeners
             document.getElementById('createUserForm')?.addEventListener('submit', async (e) => {
@@ -685,25 +688,10 @@
         window.openTerritory = (id) => { currentViewTerritoryId = id; renderApp(); };
         window.closeTerritory = () => { currentViewTerritoryId = null; renderApp(); };
 
-        window.showTerritoryInfo = (tId) => {
-            const territory = allTerritories.find(t => t.id === tId);
-            if (!territory) return;
-            const assignedUser = allUsers.find(u => u.id === territory.assignedTo);
-            const userName = assignedUser ? assignedUser.username : 'Ninguno';
-            
-            const formatDate = (isoStr) => {
-                if (!isoStr) return 'No registrado';
-                const d = new Date(isoStr);
-                return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-            };
-
-            document.getElementById('modalTitle').textContent = `Info: ${territory.name}`;
-            document.getElementById('modalContent').innerHTML = `
-                <p><span class="font-bold text-[#b3b3b3]">Publicador asignado:</span> <br>${userName}</p>
-                <p><span class="font-bold text-[#b3b3b3]">Fecha de asignación:</span> <br>${formatDate(territory.assignedDate)}</p>
-                <p><span class="font-bold text-[#b3b3b3]">Fecha de finalización:</span> <br>${territory.status === 'Completado' ? formatDate(territory.completedDate) : 'Aún no finalizado'}</p>
-            `;
-            document.getElementById('infoModal').classList.remove('hidden');
+        window.unassignTerritory = (tId, tName) => {
+            if(confirm(`¿Seguro que deseas quitarle el Territorio ${tName} al publicador asignado? Volverá a estar libre, pendiente y su progreso regresará a cero.`)) {
+                assignTerritory(tId, "");
+            }
         };
 
         window.assignTerritory = async (tId, userId) => {
@@ -714,8 +702,25 @@
                 let updateData = { assignedTo: userId || null };
                 
                 if (userId && newStatus === 'Pendiente') newStatus = 'En curso';
-                if (!userId) { newStatus = 'Pendiente'; updateData.assignedDate = null; updateData.completedDate = null; }
-                if (userId && territory.assignedTo !== userId) { updateData.assignedDate = new Date().toISOString(); updateData.completedDate = null; }
+                
+                // Si se quita la asignación (userId está vacío)
+                if (!userId) { 
+                    newStatus = 'Pendiente'; 
+                    updateData.assignedDate = null; 
+                    updateData.completedDate = null; 
+                    // Limpiamos todo el progreso para que vuelva a su estado original
+                    updateData.numbers = territory.numbers.map(n => ({
+                        ...n,
+                        result: "-",
+                        checked1: false,
+                        checked2: false
+                    }));
+                }
+                
+                if (userId && territory.assignedTo !== userId) { 
+                    updateData.assignedDate = new Date().toISOString(); 
+                    updateData.completedDate = null; 
+                }
 
                 updateData.status = newStatus;
                 await updateDoc(tRef, updateData);
