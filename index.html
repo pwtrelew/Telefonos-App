@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teléfonos App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Poppins', sans-serif; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .table-container { max-height: 60vh; overflow-y: auto; }
+        
+        /* Scrollbar styling for dark mode */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e1e1e; }
+        ::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+    </style>
+</head>
+<body class="bg-[#1e1e1e] text-[#ffffff] min-h-screen">
+
+    <!-- Navbar -->
+    <nav class="bg-[#121212] text-[#ffffff] shadow-md p-4 flex justify-between items-center sticky top-0 z-50 rounded-b-3xl">
+        <div class="text-xl font-bold flex items-center gap-2">
+            <i class="fa-solid fa-phone text-[#f5c66d]"></i> Teléfonos App
+        </div>
+        <div id="nav-user-info" class="hidden flex items-center gap-4">
+            <span id="nav-username" class="font-medium text-[#ffffff]"></span>
+            <button onclick="logout()" class="text-[#b3b3b3] hover:text-[#ffffff] transition text-sm">
+                <i class="fa-solid fa-right-from-bracket"></i> Salir
+            </button>
+        </div>
+    </nav>
+
+    <!-- Contenedor Principal de la App -->
+    <main id="app-container" class="p-4 max-w-7xl mx-auto fade-in">
+        <div class="text-center py-10">
+            <i class="fa-solid fa-circle-notch fa-spin text-4xl text-[#f5c66d]"></i>
+            <p class="mt-4 text-[#b3b3b3]">Cargando sistema...</p>
+        </div>
+    </main>
+
+    <!-- PWA Setup Dinámico -->
+    <script>
+        const manifest = {
+            name: "Teléfonos App",
+            short_name: "Territorios",
+            start_url: ".",
+            display: "standalone",
+            background_color: "#1e1e1e",
+            theme_color: "#121212",
+            icons: [{"src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><path fill='%23f5c66d' d='M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512z'/></svg>", "sizes": "512x512", "type": "image/svg+xml"}]
+        };
+        const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+        const manifestURL = URL.createObjectURL(blob);
+        document.head.insertAdjacentHTML('beforeend', `<link rel="manifest" href="${manifestURL}">`);
+        
+        // Registro del Service Worker para que sea instalable (PWA)
+        // Solo se ejecuta en entornos web reales (http/https), previniendo errores en la vista previa (blob:)
+        if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.protocol === 'http:')) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch(console.error);
+            });
+        }
+    </script>
+
+    <!-- Firebase Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, doc, setDoc, updateDoc, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Configuración de tu proyecto en Firebase
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "AIzaSyC0Hzs2DrYYxqVsOgjs2m7GbFZqGRrrZnQ",
+            authDomain: "telefonos-app.firebaseapp.com",
+            projectId: "telefonos-app",
+            storageBucket: "telefonos-app.firebasestorage.app",
+            messagingSenderId: "817969882853",
+            appId: "1:817969882853:web:ad7a27f25133be85c6160c"
+        };
+        
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'territorios-app-123';
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Estado Global
+        let firebaseUser = null;
+        let loggedInAppUser = null; 
+        let allUsers = [];
+        let allTerritories = [];
+        let currentViewTerritoryId = null;
+
+        // Estado de los acordeones del administrador
+        let isTerritoryAccordionOpen = false;
+        let isUserAccordionOpen = false;
+        let isPublishersAccordionOpen = false;
+
+        const OpcionesLlamada = [
+            "-", 
+            "No atendió nadie", 
+            "No Abonado/ Inhabilitado", 
+            "Cortó/ No le Interesa", 
+            "Se dejó mensaje al contestador", 
+            "Atendió, Ocupado", 
+            "Empresa o Comercio", 
+            "Revisita", 
+            "NO volver a llamar"
+        ];
+
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Error de autenticación:", error);
+                document.getElementById('app-container').innerHTML = `<p class="text-red-500">Error de conexión. Intente recargar.</p>`;
+            }
+        };
+
+        const container = document.getElementById('app-container');
+
+        window.renderApp = () => {
+            const navUserInfo = document.getElementById('nav-user-info');
+            const navUsername = document.getElementById('nav-username');
+
+            // Memoria de Scroll
+            let numbersScrollPos = 0;
+            const numbersScrollContainer = document.getElementById('numbers-scroll-container');
+            if (numbersScrollContainer) numbersScrollPos = numbersScrollContainer.scrollTop;
+
+            let adminScrollPos = 0;
+            const adminScrollContainer = document.getElementById('admin-table-container');
+            if (adminScrollContainer) adminScrollPos = adminScrollContainer.scrollTop;
+
+            if (!loggedInAppUser) {
+                navUserInfo.classList.add('hidden');
+                renderLogin();
+            } else {
+                navUserInfo.classList.remove('hidden');
+                navUsername.innerHTML = `<i class="fa-solid ${loggedInAppUser.role === 'admin' ? 'fa-user-shield' : 'fa-user'} text-[#f5c66d]"></i> ${loggedInAppUser.username}`;
+                
+                if (loggedInAppUser.role === 'admin') {
+                    renderAdminDashboard();
+                    const newAdminScroll = document.getElementById('admin-table-container');
+                    if (newAdminScroll) newAdminScroll.scrollTop = adminScrollPos;
+                } else {
+                    if (currentViewTerritoryId) {
+                        renderTerritoryView(currentViewTerritoryId);
+                        const newNumbersScroll = document.getElementById('numbers-scroll-container');
+                        if (newNumbersScroll) newNumbersScroll.scrollTop = numbersScrollPos;
+                    }
+                    else renderUserDashboard();
+                }
+            }
+        };
+
+        const renderLogin = () => {
+            container.innerHTML = `
+                <div class="max-w-md mx-auto bg-[#2a2a2a] p-10 rounded-3xl shadow-2xl mt-16 flex flex-col items-center border border-[#3a3a3a]">
+                    <i class="fa-solid fa-phone text-6xl text-[#f5c66d] mb-6"></i>
+                    <h2 class="text-3xl font-extrabold text-center mb-10 text-[#ffffff]">Teléfonos App</h2>
+                    <form id="loginForm" class="space-y-6 w-full">
+                        <div>
+                            <input type="text" id="username" placeholder="Usuario" class="w-full px-5 py-3 border border-[#3a3a3a] rounded-xl bg-[#3a3a3a] text-[#ffffff] placeholder-[#b3b3b3] focus:outline-none focus:ring-2 focus:ring-[#f5c66d]" required>
+                        </div>
+                        <div>
+                            <input type="password" id="password" placeholder="Contraseña" class="w-full px-5 py-3 border border-[#3a3a3a] rounded-xl bg-[#3a3a3a] text-[#ffffff] placeholder-[#b3b3b3] focus:outline-none focus:ring-2 focus:ring-[#f5c66d]" required>
+                        </div>
+                        <button type="submit" class="w-full bg-[#f5c66d] text-[#1e1e1e] font-extrabold py-3 px-4 rounded-xl hover:bg-[#ffdf91] transition duration-200">
+                            Ingresar
+                        </button>
+                    </form>
+                    <p id="loginError" class="text-red-400 text-sm mt-5 text-center hidden"></p>
+                </div>
+            `;
+            
+            document.getElementById('loginForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const u = document.getElementById('username').value.trim();
+                const p = document.getElementById('password').value.trim();
+                
+                const user = allUsers.find(user => user.username === u && user.password === p);
+                if (user) {
+                    loggedInAppUser = user;
+                    currentViewTerritoryId = null;
+                    renderApp();
+                } else {
+                    const err = document.getElementById('loginError');
+                    err.textContent = "Usuario o contraseña incorrectos.";
+                    err.classList.remove('hidden');
+                }
+            });
+        };
+
+        const renderAdminDashboard = () => {
+            const totalT = allTerritories.length;
+            const completedT = allTerritories.filter(t => t.status === 'Completado').length;
+
+            // Variables para el estado de los menús desplegables
+            const terrHidden = isTerritoryAccordionOpen ? '' : 'hidden';
+            const terrChevron = isTerritoryAccordionOpen ? 'fa-chevron-up' : 'fa-chevron-down';
+            
+            const userHidden = isUserAccordionOpen ? '' : 'hidden';
+            const userChevron = isUserAccordionOpen ? 'fa-chevron-up' : 'fa-chevron-down';
+
+            const pubHidden = isPublishersAccordionOpen ? '' : 'hidden';
+            const pubChevron = isPublishersAccordionOpen ? 'fa-chevron-up' : 'fa-chevron-down';
+
+            // Construir filas de tabla de forma segura
+            let tableRows = '';
+            if (allTerritories.length === 0) {
+                tableRows = '<tr><td colspan="3" class="p-6 text-center text-[#b3b3b3]">No hay territorios creados.</td></tr>';
+            } else {
+                const sortedTerritories = [...allTerritories].sort((a,b) => a.name.localeCompare(b.name));
+                
+                tableRows = sortedTerritories.map(t => {
+                    const total = t.numbers.length;
+                    const called = t.numbers.filter(n => n.result !== "-").length;
+                    
+                    let progressHtml = '';
+                    if (t.status === 'Completado' || (called === total && total > 0)) {
+                        progressHtml = `<div class="text-[#cde7ac] font-bold text-sm"><i class="fa-solid fa-check-double"></i> ¡Finalizado!</div>`;
+                    } else {
+                        let percentage = total === 0 ? 0 : (called / total) * 100;
+                        let text = `${called} de ${total}`;
+                        progressHtml = `
+                            <div class="w-full bg-[#1e1e1e] rounded-full h-3 relative overflow-hidden">
+                                <div class="bg-[#f5c66d] h-3 rounded-full transition-all duration-500" style="width: ${percentage}%"></div>
+                            </div>
+                            <div class="text-[11px] font-medium text-[#b3b3b3] mt-1.5">${text}</div>
+                        `;
+                    }
+                    
+                    const userOptionsHtml = allUsers.filter(u => u.role !== 'admin').map(u => 
+                        `<option value="${u.id}" ${t.assignedTo === u.id ? 'selected' : ''} class="text-[#ffffff]">${u.username}</option>`
+                    ).join('');
+
+                    return `
+                    <tr class="border-b border-[#2a2a2a] hover:bg-[#2a2a2a] transition-colors rounded-lg">
+                        <td class="py-3 px-4 font-medium text-[#ffffff] rounded-l-lg whitespace-nowrap flex items-center">
+                            <span>${t.name}</span>
+                            <button onclick="showTerritoryInfo('${t.id}')" class="text-[#b3b3b3] hover:text-[#ffffff] p-1 ml-3" title="Ver Info">
+                                <i class="fa-solid fa-circle-info"></i>
+                            </button>
+                        </td>
+                        <td class="py-3 px-4 pr-5">${progressHtml}</td>
+                        <td class="py-3 px-4 rounded-r-lg">
+                            <select onchange="assignTerritory('${t.id}', this.value)" class="border border-[#3a3a3a] rounded-lg p-2 text-sm bg-[#1e1e1e] text-[#ffffff] w-full min-w-[120px] focus:ring-1 focus:ring-[#f5c66d] focus:border-[#f5c66d] outline-none cursor-pointer">
+                                <option value="" class="text-[#b3b3b3]">-</option>
+                                ${userOptionsHtml}
+                            </select>
+                        </td>
+                    </tr>
+                    `;
+                }).join('');
+            }
+
+            // Construir tarjetas de publicadores
+            const publishersCardsHtml = allUsers.filter(u => u.role !== 'admin').map(u => {
+                const userTerrs = allTerritories.filter(t => t.assignedTo === u.id);
+                const terrListHtml = userTerrs.map(t => {
+                    let statusColor = "text-[#b3b3b3]";
+                    if(t.status === 'Completado') statusColor = "text-[#cde7ac]";
+                    if(t.status === 'En curso') statusColor = "text-[#f5c66d]";
+                    return `<li class="text-xs flex justify-between border-b border-[#3a3a3a] py-1.5 last:border-0"><span class="text-[#ffffff] font-bold">Terr. ${t.name}</span> <span class="${statusColor}">${t.status}</span></li>`;
+                }).join('');
+                
+                return `
+                <div class="bg-[#1e1e1e] p-5 rounded-2xl border border-[#3a3a3a]">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="bg-[#2a2a2a] p-2.5 rounded-full"><i class="fa-solid fa-user text-[#add8e6]"></i></div>
+                        <div>
+                            <h4 class="font-bold text-[#ffffff]">${u.username}</h4>
+                            <p class="text-[10px] text-[#b3b3b3] font-mono">🔑 ${u.password}</p>
+                        </div>
+                    </div>
+                    <div class="bg-[#2a2a2a] rounded-xl p-3">
+                        <h5 class="text-[10px] font-bold text-[#b3b3b3] mb-2 uppercase tracking-wider">Territorios asignados</h5>
+                        <ul class="space-y-1">
+                            ${terrListHtml || '<li class="text-xs text-[#b3b3b3]">Ninguno</li>'}
+                        </ul>
+                    </div>
+                </div>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <div class="space-y-8">
+                    <!-- 1. Lista de Territorios -->
+                    <div class="bg-[#121212] p-8 rounded-3xl shadow-xl border border-[#2a2a2a]">
+                        <h3 class="text-2xl font-extrabold mb-6 border-b border-[#2a2a2a] pb-4 text-[#ffffff]"><i class="fa-solid fa-map text-[#f5c66d]"></i> Territorios</h3>
+                        <div id="admin-table-container" class="table-container overflow-x-auto pr-2">
+                            <table class="min-w-full text-left text-sm">
+                                <thead class="bg-[#2a2a2a] sticky top-0 z-10 shadow-sm">
+                                <tr>
+                                    <th class="py-3 px-4 w-1/6 text-[#b3b3b3] rounded-l-lg whitespace-nowrap">Terr.</th>
+                                    <th class="py-3 px-4 w-5/12 text-[#b3b3b3]">Estado</th>
+                                    <th class="py-3 px-4 w-5/12 text-[#b3b3b3] rounded-r-lg">Asignado a</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${tableRows}
+                            </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- 2. Estadísticas -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="bg-[#2a2a2a] p-6 rounded-2xl shadow border border-[#3a3a3a]">
+                            <h3 class="text-[#b3b3b3] text-sm font-bold mb-1">Territorios</h3>
+                            <p class="text-3xl font-extrabold text-[#ffffff]">${totalT}</p>
+                        </div>
+                        <div class="bg-[#2a2a2a] p-6 rounded-2xl shadow border border-[#3a3a3a]">
+                            <h3 class="text-[#b3b3b3] text-sm font-bold mb-1">Completados</h3>
+                            <p class="text-3xl font-extrabold text-[#ffffff]">${completedT}</p>
+                        </div>
+                        <div class="bg-[#2a2a2a] p-6 rounded-2xl shadow border border-[#3a3a3a] flex flex-col justify-center items-start">
+                             <h3 class="text-[#b3b3b3] text-sm font-bold mb-2">Herramientas</h3>
+                             <span class="text-[#b3b3b3] text-sm">Panel Activo</span>
+                        </div>
+                    </div>
+
+                    <!-- 3. Cargar Territorio Manual (Desplegable) -->
+                    <div class="bg-[#2a2a2a] p-8 rounded-2xl shadow-md border border-[#3a3a3a]">
+                        <div class="flex justify-between items-center cursor-pointer group" onclick="toggleTerritoryAccordion()">
+                            <h3 class="text-xl font-bold text-[#ffffff] group-hover:text-[#f5c66d] transition-colors"><i class="fa-solid fa-file-lines text-[#f5c66d] mr-2"></i> Cargar Territorio</h3>
+                            <i id="territory-chevron" class="fa-solid ${terrChevron} text-[#b3b3b3] group-hover:text-[#ffffff] transition-colors text-lg"></i>
+                        </div>
+                        <div id="territory-form-container" class="${terrHidden}">
+                            <div class="border-t border-[#3a3a3a] mt-6 pt-6">
+                                <form id="createTerritoryForm" class="space-y-5 max-w-3xl">
+                                    <input type="text" id="newTerritoryName" placeholder="Nombre (ej: 01)" class="w-full px-5 py-3 border border-[#3a3a3a] rounded-xl bg-[#3a3a3a] text-[#ffffff] placeholder-[#b3b3b3] focus:outline-none focus:ring-2 focus:ring-[#f5c66d]" required>
+                                    <textarea id="newTerritoryNumbers" placeholder="Pega los números aquí..." class="w-full px-5 py-3 border border-[#3a3a3a] rounded-xl bg-[#3a3a3a] text-[#ffffff] placeholder-[#b3b3b3] h-28 focus:outline-none focus:ring-2 focus:ring-[#f5c66d]" required></textarea>
+                                    <button type="submit" class="w-full bg-[#f5c66d] text-[#1e1e1e] font-extrabold py-3 rounded-xl hover:bg-[#ffdf91] transition duration-200">Crear Territorio</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4. Crear Usuario (Desplegable) -->
+                    <div class="bg-[#2a2a2a] p-8 rounded-2xl shadow-md border border-[#3a3a3a]">
+                        <div class="flex justify-between items-center cursor-pointer group" onclick="toggleUserAccordion()">
+                            <h3 class="text-xl font-bold text-[#ffffff] group-hover:text-[#f5c66d] transition-colors"><i class="fa-solid fa-user-plus text-[#f5c66d] mr-2"></i> Nuevo Usuario</h3>
+                            <i id="user-chevron" class="fa-solid ${userChevron} text-[#b3b3b3] group-hover:text-[#ffffff] transition-colors text-lg"></i>
+                        </div>
+                        <div id="user-form-container" class="${userHidden}">
+                            <div class="border-t border-[#3a3a3a] mt-6 pt-6">
+                                <form id="createUserForm" class="space-y-5 max-w-xl mx-auto">
+                                    <input type="text" id="newUsername" placeholder="Nombre de usuario" class="w-full px-5 py-3 border border-[#3a3a3a] rounded-xl bg-[#3a3a3a] text-[#ffffff] placeholder-[#b3b3b3] focus:outline-none focus:ring-2 focus:ring-[#f5c66d]" required>
+                                    <input type="text" id="newPassword" placeholder="Contraseña" class="w-full px-5 py-3 border border-[#3a3a3a] rounded-xl bg-[#3a3a3a] text-[#ffffff] placeholder-[#b3b3b3] focus:outline-none focus:ring-2 focus:ring-[#f5c66d]" required>
+                                    <button type="submit" class="w-full bg-[#f5c66d] text-[#1e1e1e] font-extrabold py-3 rounded-xl hover:bg-[#ffdf91] transition duration-200">Crear Publicador</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 5. Publicadores (Desplegable) -->
+                    <div class="bg-[#2a2a2a] p-8 rounded-2xl shadow-md border border-[#3a3a3a]">
+                        <div class="flex justify-between items-center cursor-pointer group" onclick="togglePublishersAccordion()">
+                            <h3 class="text-xl font-bold text-[#ffffff] group-hover:text-[#add8e6] transition-colors"><i class="fa-solid fa-users text-[#add8e6] mr-2"></i> Publicadores</h3>
+                            <i id="publishers-chevron" class="fa-solid ${pubChevron} text-[#b3b3b3] group-hover:text-[#ffffff] transition-colors text-lg"></i>
+                        </div>
+                        <div id="publishers-container" class="${pubHidden}">
+                            <div class="border-t border-[#3a3a3a] mt-6 pt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                ${publishersCardsHtml}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal de Info -->
+                <div id="infoModal" class="hidden fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4">
+                    <div class="bg-[#121212] rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-[#2a2a2a]">
+                        <h3 id="modalTitle" class="text-xl font-extrabold mb-6 border-b border-[#2a2a2a] pb-4 text-[#ffffff]">Info</h3>
+                        <div id="modalContent" class="text-sm space-y-4 text-[#ffffff]"></div>
+                        <div class="mt-8 text-right">
+                            <button onclick="document.getElementById('infoModal').classList.add('hidden')" class="bg-[#f5c66d] text-[#1e1e1e] font-extrabold px-6 py-2 rounded-xl hover:bg-[#ffdf91] transition">Cerrar</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Listeners
+            document.getElementById('createUserForm')?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const u = document.getElementById('newUsername').value.trim();
+                const p = document.getElementById('newPassword').value.trim();
+                if (allUsers.find(user => user.username === u)) { alert("El usuario ya existe"); return; }
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'users'), { username: u, password: p, role: 'user' });
+                document.getElementById('newUsername').value = '';
+                document.getElementById('newPassword').value = '';
+            });
+
+            document.getElementById('createTerritoryForm')?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                let name = document.getElementById('newTerritoryName').value.trim();
+                const rawNumbers = document.getElementById('newTerritoryNumbers').value;
+
+                if (/^\d+$/.test(name)) { name = name.padStart(2, '0'); }
+
+                const regex = /\d{3}-?\d{4}/g;
+                const matches = rawNumbers.match(regex);
+                if (!matches || matches.length === 0) { alert("No se detectaron números válidos (deben ser de 7 dígitos)."); return; }
+
+                const numbers = matches.map(num => ({ phone: num, result: "-", checked1: false, checked2: false }));
+
+                try {
+                    await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'territories'), { name: name, assignedTo: null, status: 'Pendiente', numbers: numbers });
+                    alert(`¡${name} creado con éxito! Se cargaron ${numbers.length} números.`);
+                    document.getElementById('newTerritoryName').value = '';
+                    document.getElementById('newTerritoryNumbers').value = '';
+                } catch (err) { alert("Error al cargar en la base de datos."); }
+            });
+        };
+
+        const renderUserDashboard = () => {
+            const myTerritories = allTerritories.filter(t => t.assignedTo === loggedInAppUser.id);
+            
+            const statsByMonth = {};
+            const myCompletedTerritories = myTerritories.filter(t => t.status === 'Completado' && t.completedDate);
+            myCompletedTerritories.forEach(t => {
+                const d = new Date(t.completedDate);
+                const monthYear = d.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+                statsByMonth[monthYear] = (statsByMonth[monthYear] || 0) + 1;
+            });
+
+            let cardsHtml = '';
+            if (myTerritories.length === 0) {
+                cardsHtml = '<p class="text-[#b3b3b3] col-span-full py-4 px-2 text-center bg-[#1e1e1e] rounded-xl">No tienes territorios asignados en este momento.</p>';
+            } else {
+                cardsHtml = myTerritories.map(t => {
+                    let displayStatus = (t.status === 'Ronda 1' || t.status === 'Ronda 2') ? 'En curso' : t.status;
+                    let statusColor = 'bg-[#1e1e1e] border-[#3a3a3a] text-[#ffffff]';
+                    let icon = 'fa-map text-[#b3b3b3]';
+                    let statusTextColor = 'text-[#b3b3b3]';
+                    let progressFillColor = 'bg-[#f5c66d]';
+
+                    const total = t.numbers.length;
+                    const called = t.numbers.filter(n => n.result !== "-").length;
+
+                    if (displayStatus === 'Completado' || (called === total && total > 0)) { 
+                        statusColor = 'bg-[#1e1e1e] border-[#cde7ac] text-[#ffffff]'; 
+                        icon = 'fa-check-circle text-[#cde7ac]'; 
+                        statusTextColor = 'text-[#cde7ac]';
+                        progressFillColor = 'bg-[#cde7ac]';
+                        displayStatus = 'Completado';
+                    } else if (t.assignedTo) {
+                        statusColor = 'bg-[#1e1e1e] border-[#f5c66d] text-[#ffffff]'; 
+                        icon = 'fa-phone text-[#f5c66d]'; 
+                        statusTextColor = 'text-[#f5c66d]';
+                        displayStatus = 'En curso';
+                    }
+
+                    let progressText = `${called}/${total}`;
+
+                    return `
+                    <div onclick="openTerritory('${t.id}')" class="${statusColor} border rounded-3xl p-6 cursor-pointer hover:shadow-2xl transition relative overflow-hidden group flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-extrabold text-2xl">${t.name}</h3>
+                                <i class="fa-solid ${icon} text-3xl"></i>
+                            </div>
+                            <p class="text-sm font-bold mb-3 ${statusTextColor}">${displayStatus}</p>
+                            <div class="w-full bg-[#3a3a3a] rounded-full h-3 mb-2">
+                                <div class="${progressFillColor} h-3 rounded-full" style="width: ${total === 0 ? 0 : (called/total)*100}%"></div>
+                            </div>
+                            <p class="text-xs text-[#b3b3b3] text-right font-medium">${progressText}</p>
+                        </div>
+                        <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition flex items-center justify-center">
+                            <span class="opacity-0 group-hover:opacity-100 bg-[#f5c66d] text-[#1e1e1e] px-4 py-1.5 rounded-full shadow-lg text-sm font-extrabold transition">Abrir</span>
+                        </div>
+                    </div>
+                    `;
+                }).join('');
+            }
+
+            let statsHtml = '';
+            if (Object.keys(statsByMonth).length === 0) {
+                statsHtml = '<p class="text-[#b3b3b3] col-span-full py-4 px-2 text-center bg-[#1e1e1e] rounded-xl">Aún no hay registros de territorios completados.</p>';
+            } else {
+                statsHtml = Object.entries(statsByMonth).map(([month, count]) => `
+                    <div class="bg-[#1e1e1e] border border-[#3a3a3a] rounded-2xl p-6 text-center shadow-inner">
+                        <p class="text-[#b3b3b3] text-sm font-bold mb-2 capitalize">${month}</p>
+                        <p class="text-5xl font-extrabold text-[#add8e6]">${count}</p>
+                    </div>
+                `).join('');
+            }
+
+            container.innerHTML = `
+                <div class="space-y-8">
+                    <!-- Mensaje de bienvenida -->
+                    <div class="px-2 pt-2">
+                        <h1 class="text-3xl font-extrabold text-[#ffffff]">Hola ${loggedInAppUser.username}!</h1>
+                    </div>
+
+                    <!-- Cuadro principal -->
+                    <div class="bg-[#2a2a2a] p-8 rounded-3xl shadow-lg border border-[#3a3a3a]">
+                        <h2 class="text-3xl font-extrabold mb-8 text-[#ffffff]"><i class="fa-solid fa-clipboard-list text-[#f5c66d]"></i> Mis Territorios</h2>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                            ${cardsHtml}
+                        </div>
+                    </div>
+
+                    <!-- Estadísticas -->
+                    <div class="bg-[#2a2a2a] p-8 rounded-3xl shadow-lg border border-[#3a3a3a]">
+                        <h3 class="text-2xl font-extrabold mb-6 text-[#ffffff]"><i class="fa-solid fa-chart-pie text-[#add8e6]"></i> Mis estadísticas</h3>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-6">
+                            ${statsHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+        };
+
+        const renderTerritoryView = (tId) => {
+            const territory = allTerritories.find(t => t.id === tId);
+            if (!territory) { currentViewTerritoryId = null; renderApp(); return; }
+
+            const isNorte = loggedInAppUser && loggedInAppUser.username.toLowerCase() === 'norte';
+            
+            const rowsHtml = territory.numbers.map((num, idx) => {
+                const optHtml = OpcionesLlamada.map(opt => `<option value="${opt}" ${num.result === opt ? 'selected' : ''} class="text-[#ffffff]">${opt}</option>`).join('');
+                
+                let extraCols = '';
+                if (isNorte) {
+                    extraCols = `
+                    <td class="py-2 px-3">
+                        <input type="date" value="${num.date || ''}" onchange="updateNumberField('${territory.id}', ${idx}, 'date', this.value)" class="w-full border border-[#3a3a3a] rounded-lg py-1 px-2 text-xs bg-[#1e1e1e] text-[#ffffff] focus:ring-1 focus:ring-[#f5c66d]">
+                    </td>
+                    <td class="py-2 px-3">
+                        <input type="text" placeholder="Nombre..." value="${num.customAssignee || ''}" onchange="updateNumberField('${territory.id}', ${idx}, 'customAssignee', this.value)" class="w-full border border-[#3a3a3a] rounded-lg py-1 px-2 text-xs bg-[#1e1e1e] text-[#ffffff] focus:ring-1 focus:ring-[#f5c66d]">
+                    </td>
+                    `;
+                }
+
+                const isCalled = num.result !== "-";
+
+                return `
+                <tr class="hover:bg-[#2a2a2a] transition-colors ${isCalled ? 'bg-[#1e1e1e] opacity-60' : ''} rounded-lg">
+                    <td class="py-2 px-3 font-bold ${isNorte ? 'text-xs' : 'text-base'} text-[#ffffff] rounded-l-lg tracking-wider whitespace-nowrap">
+                        <div class="flex items-center gap-2">
+                            <span>${num.phone}</span>
+                            <button onclick="copyPhone('${num.phone}', this)" class="text-[#b3b3b3] hover:text-[#ffffff] p-1 rounded ml-1" title="Copiar número">
+                                <i class="fa-regular fa-copy"></i>
+                            </button>
+                        </div>
+                    </td>
+                    ${extraCols}
+                    <td class="py-2 px-3 rounded-r-lg">
+                        <select onchange="updateResult('${territory.id}', ${idx}, this.value)" class="w-full min-w-[120px] border border-[#3a3a3a] rounded-lg py-1.5 px-2.5 bg-[#2a2a2a] text-[#ffffff] focus:ring-1 focus:ring-[#f5c66d] outline-none text-xs cursor-pointer">
+                            ${optHtml}
+                        </select>
+                    </td>
+                </tr>
+                `;
+            }).join('');
+
+            let thExtra = isNorte ? `<th class="py-2 px-3 w-1/6 text-[#b3b3b3]">Fecha</th><th class="py-2 px-3 w-1/6 text-[#b3b3b3]">Asignado</th>` : '';
+
+            let displayStatus = (territory.status === 'Ronda 1' || territory.status === 'Ronda 2') ? 'En curso' : territory.status;
+
+            container.innerHTML = `
+                <div class="bg-[#121212] rounded-3xl shadow-xl overflow-hidden flex flex-col h-[85vh] border border-[#2a2a2a]">
+                    <!-- Header -->
+                    <div class="bg-[#1e1e1e] p-6 border-b border-[#2a2a2a] flex justify-between items-center">
+                        <div>
+                            <button onclick="closeTerritory()" class="text-[#f5c66d] hover:text-[#ffdf91] mr-4 text-sm font-bold">
+                                <i class="fa-solid fa-arrow-left"></i> Volver
+                            </button>
+                            <span class="font-extrabold text-2xl md:text-3xl text-[#ffffff]">${territory.name}</span>
+                        </div>
+                        <span class="bg-[#2a2a2a] text-[#ffffff] px-4 py-1.5 rounded-full text-xs font-bold border border-[#3a3a3a]">
+                            ${displayStatus}
+                        </span>
+                    </div>
+
+                    <!-- Lista -->
+                    <div id="numbers-scroll-container" class="flex-1 overflow-y-auto p-2">
+                        <table class="min-w-full text-left text-sm">
+                            <thead class="bg-[#1e1e1e] sticky top-0 shadow-lg z-10">
+                                <tr>
+                                    <th class="py-2 px-3 ${isNorte ? 'w-1/6' : 'w-1/2'} text-[#b3b3b3] rounded-l-lg">Teléfono</th>
+                                    ${thExtra}
+                                    <th class="py-2 px-3 ${isNorte ? 'w-1/2' : 'w-1/2'} text-[#b3b3b3] rounded-r-lg">Resultado</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-[#2a2a2a]">
+                                ${rowsHtml}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    ${displayStatus === 'Completado' ? `
+                        <div class="bg-[#cde7ac] p-4 md:p-6 text-center text-[#1e1e1e] font-extrabold border-t border-[#cde7ac] flex items-center justify-center gap-3">
+                            <i class="fa-solid fa-check-double text-xl md:text-2xl"></i> ¡Territorio completado en su totalidad!
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        };
+
+        // ---- ACCIONES ----
+        window.toggleTerritoryAccordion = () => {
+            isTerritoryAccordionOpen = !isTerritoryAccordionOpen;
+            const content = document.getElementById('territory-form-container');
+            const chevron = document.getElementById('territory-chevron');
+            if (isTerritoryAccordionOpen) {
+                content.classList.remove('hidden');
+                chevron.classList.replace('fa-chevron-down', 'fa-chevron-up');
+            } else {
+                content.classList.add('hidden');
+                chevron.classList.replace('fa-chevron-up', 'fa-chevron-down');
+            }
+        };
+
+        window.toggleUserAccordion = () => {
+            isUserAccordionOpen = !isUserAccordionOpen;
+            const content = document.getElementById('user-form-container');
+            const chevron = document.getElementById('user-chevron');
+            if (isUserAccordionOpen) {
+                content.classList.remove('hidden');
+                chevron.classList.replace('fa-chevron-down', 'fa-chevron-up');
+            } else {
+                content.classList.add('hidden');
+                chevron.classList.replace('fa-chevron-up', 'fa-chevron-down');
+            }
+        };
+
+        window.togglePublishersAccordion = () => {
+            isPublishersAccordionOpen = !isPublishersAccordionOpen;
+            const content = document.getElementById('publishers-container');
+            const chevron = document.getElementById('publishers-chevron');
+            if (isPublishersAccordionOpen) {
+                content.classList.remove('hidden');
+                chevron.classList.replace('fa-chevron-down', 'fa-chevron-up');
+            } else {
+                content.classList.add('hidden');
+                chevron.classList.replace('fa-chevron-up', 'fa-chevron-down');
+            }
+        };
+
+        window.copyPhone = (phone, btnElement) => {
+            const el = document.createElement('textarea');
+            el.value = phone;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            
+            if (btnElement) {
+                const icon = btnElement.querySelector('i');
+                icon.className = 'fa-solid fa-check text-[#cde7ac]';
+                setTimeout(() => { icon.className = 'fa-regular fa-copy'; }, 1500);
+            }
+        };
+
+        window.logout = () => { loggedInAppUser = null; currentViewTerritoryId = null; renderApp(); };
+        window.openTerritory = (id) => { currentViewTerritoryId = id; renderApp(); };
+        window.closeTerritory = () => { currentViewTerritoryId = null; renderApp(); };
+
+        window.showTerritoryInfo = (tId) => {
+            const territory = allTerritories.find(t => t.id === tId);
+            if (!territory) return;
+            const assignedUser = allUsers.find(u => u.id === territory.assignedTo);
+            const userName = assignedUser ? assignedUser.username : 'Ninguno';
+            
+            const formatDate = (isoStr) => {
+                if (!isoStr) return 'No registrado';
+                const d = new Date(isoStr);
+                return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            };
+
+            document.getElementById('modalTitle').textContent = `Info: ${territory.name}`;
+            document.getElementById('modalContent').innerHTML = `
+                <p><span class="font-bold text-[#b3b3b3]">Publicador asignado:</span> <br>${userName}</p>
+                <p><span class="font-bold text-[#b3b3b3]">Fecha de asignación:</span> <br>${formatDate(territory.assignedDate)}</p>
+                <p><span class="font-bold text-[#b3b3b3]">Fecha de finalización:</span> <br>${territory.status === 'Completado' ? formatDate(territory.completedDate) : 'Aún no finalizado'}</p>
+            `;
+            document.getElementById('infoModal').classList.remove('hidden');
+        };
+
+        window.assignTerritory = async (tId, userId) => {
+            try {
+                const tRef = doc(db, 'artifacts', appId, 'public', 'data', 'territories', tId);
+                const territory = allTerritories.find(t => t.id === tId);
+                let newStatus = territory.status;
+                let updateData = { assignedTo: userId || null };
+                
+                if (userId && newStatus === 'Pendiente') newStatus = 'En curso';
+                if (!userId) { newStatus = 'Pendiente'; updateData.assignedDate = null; updateData.completedDate = null; }
+                if (userId && territory.assignedTo !== userId) { updateData.assignedDate = new Date().toISOString(); updateData.completedDate = null; }
+
+                updateData.status = newStatus;
+                await updateDoc(tRef, updateData);
+            } catch (err) { console.error("Error asignando:", err); }
+        };
+
+        window.updateResult = async (tId, numIndex, newResult) => {
+            const territory = allTerritories.find(t => t.id === tId);
+            if (!territory) return;
+            
+            territory.numbers[numIndex].result = newResult;
+
+            // Evaluar lógica de completitud simplificada
+            const isComplete = territory.numbers.every(n => n.result !== "-");
+            let newStatus = territory.assignedTo ? 'En curso' : 'Pendiente';
+            let completedDate = territory.completedDate || null;
+
+            if (isComplete) {
+                newStatus = 'Completado';
+                if (territory.status !== 'Completado') completedDate = new Date().toISOString();
+            } else {
+                if (territory.status === 'Completado') completedDate = null;
+            }
+
+            try { 
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'territories', tId), { 
+                    numbers: territory.numbers,
+                    status: newStatus,
+                    completedDate: completedDate
+                }); 
+            } 
+            catch (err) { console.error(err); }
+        };
+
+        window.updateNumberField = async (tId, numIndex, field, value) => {
+            const territory = allTerritories.find(t => t.id === tId);
+            if (!territory) return;
+            territory.numbers[numIndex][field] = value;
+            try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'territories', tId), { numbers: territory.numbers }); } 
+            catch (err) { console.error(err); }
+        };
+
+        // ---- COPIA DE SEGURIDAD OCULTA ----
+        // Bóveda de memoria: Aquí se guardan los territorios de forma invisible
+        const BACKUP_TERRITORIES = [
+            {
+                name: "01",
+                raw: "4427837443431544390224425652442648744264854433514442119144336074422108442565144326294438166442377044294914420969443612744274404422865443887144287584422332443384344256584434753442988444316534435088443439344346474429786442100844323954430981443482744236884426491443722144299464424264443766844335584420058443602244339424434826443168744306744433689442477944318114425683443414444368464423658443461144345824435580442364744235974427326443406044376984433635442412544383514437101442-6749443-0517442-6130442-7758443-9038443-1775443-8487"
+            }
+        ];
+
+        window.restoreHiddenBackups = async () => {
+            // Esta función no tiene botón. Solo puede ser llamada por un admin desde la consola en caso de emergencia.
+            for (let terr of BACKUP_TERRITORIES) {
+                if (!allTerritories.find(t => t.name === terr.name)) {
+                    const matches = terr.raw.match(/\d{3}-?\d{4}/g);
+                    if (matches) {
+                        const numbers = matches.map(num => ({ phone: num, result: "-", checked1: false, checked2: false }));
+                        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'territories'), {
+                            name: terr.name, assignedTo: null, status: 'Pendiente', numbers: numbers
+                        });
+                    }
+                }
+            }
+            alert("Bóveda secreta: Territorios restaurados.");
+        };
+
+        // ---- INICIALIZACIÓN Y SUSCRIPCIONES A FIREBASE ----
+        const initDataListeners = () => {
+            const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'users');
+            onSnapshot(usersRef, (snapshot) => {
+                const users = [];
+                snapshot.forEach(doc => users.push({ id: doc.id, ...doc.data() }));
+                
+                if (users.length === 0) { addDoc(usersRef, { username: 'admin', password: 'admin', role: 'admin' }); }
+                if (users.length > 0 && !users.find(u => u.username.toLowerCase() === 'norte')) {
+                    addDoc(usersRef, { username: 'Norte', password: 'norte', role: 'user' });
+                }
+                
+                if (users.length > 0) {
+                    allUsers = users;
+                    if (loggedInAppUser) {
+                        const updatedMe = allUsers.find(u => u.id === loggedInAppUser.id);
+                        if (updatedMe) loggedInAppUser = updatedMe;
+                    }
+                    if(loggedInAppUser) renderApp();
+                }
+            }, (error) => console.error(error));
+
+            const terrRef = collection(db, 'artifacts', appId, 'public', 'data', 'territories');
+            onSnapshot(terrRef, (snapshot) => {
+                const terrs = [];
+                snapshot.forEach(doc => terrs.push({ id: doc.id, ...doc.data() }));
+                allTerritories = terrs;
+                if (loggedInAppUser) renderApp();
+            }, (error) => console.error(error));
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            firebaseUser = user;
+            if (user) { 
+                initDataListeners(); 
+                renderApp(); // <--- ¡Esta es la línea que faltaba para arrancar la pantalla!
+            }
+        });
+
+        initAuth();
+
+    </script>
+</body>
+</html>
