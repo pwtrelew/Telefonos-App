@@ -96,6 +96,7 @@
         let allUsers = [];
         let allTerritories = [];
         let currentViewTerritoryId = null;
+        let sortActiveFirst = false;
 
         // Estado de los acordeones del administrador
         let isUserAccordionOpen = false;
@@ -243,7 +244,17 @@
             if (allTerritories.length === 0) {
                 tableRows = '<tr><td colspan="3" class="p-6 text-center text-[#b3b3b3]">No hay territorios creados.</td></tr>';
             } else {
-                const sortedTerritories = [...allTerritories].sort((a,b) => a.name.localeCompare(b.name));
+                let sortedTerritories = [...allTerritories].sort((a,b) => a.name.localeCompare(b.name));
+                
+                // Aplicar orden prioritario si el botón está activado
+                if (sortActiveFirst) {
+                    sortedTerritories.sort((a, b) => {
+                        const aActive = a.assignedTo ? 1 : 0;
+                        const bActive = b.assignedTo ? 1 : 0;
+                        if (aActive !== bActive) return bActive - aActive; // Los asignados (1) van arriba de los no asignados (0)
+                        return a.name.localeCompare(b.name); // Desempate por nombre
+                    });
+                }
                 
                 tableRows = sortedTerritories.map(t => {
                     const assignedUser = allUsers.find(u => u.id === t.assignedTo);
@@ -337,7 +348,14 @@
                                 <thead class="bg-[#2a2a2a] sticky top-0 z-10 shadow-sm">
                                 <tr>
                                     <th class="py-3 px-2 sm:px-4 w-[1%] whitespace-nowrap text-[#b3b3b3] rounded-l-lg">Terr.</th>
-                                    <th class="py-3 px-2 sm:px-4 w-auto text-[#b3b3b3]">Estado</th>
+                                    <th class="py-3 px-2 sm:px-4 w-auto text-[#b3b3b3]">
+                                        <div class="flex items-center justify-between pr-2">
+                                            <span>Estado</span>
+                                            <button onclick="toggleSortActive()" class="${sortActiveFirst ? 'bg-[#f5c66d] text-[#1e1e1e]' : 'bg-[#3a3a3a] text-[#b3b3b3] hover:text-[#ffffff]'} px-2 py-1 rounded text-[10px] font-bold transition flex items-center gap-1 shadow-sm" title="Mostrar en uso primero">
+                                                <i class="fa-solid fa-sort"></i> En uso
+                                            </button>
+                                        </div>
+                                    </th>
                                     <th class="py-3 px-2 sm:px-4 w-[110px] sm:w-1/3 text-[#b3b3b3] rounded-r-lg">Asignado a</th>
                                 </tr>
                             </thead>
@@ -670,6 +688,11 @@
         };
 
         // ---- ACCIONES ----
+        window.toggleSortActive = () => {
+            sortActiveFirst = !sortActiveFirst;
+            renderApp();
+        };
+
         window.toggleUserAccordion = () => {
             isUserAccordionOpen = !isUserAccordionOpen;
             const content = document.getElementById('user-form-container');
@@ -916,6 +939,7 @@
     </script>
 </body>
 </html>
+
 
 
 
