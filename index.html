@@ -122,7 +122,7 @@
             let totalRequired = 0;
             let totalMade = 0;
 
-            territory.numbers.forEach(n => {
+            (territory.numbers || []).forEach(n => {
                 totalRequired++; 
                 if (n.result && n.result !== "-") totalMade++;
 
@@ -146,50 +146,58 @@
                 }
             } catch (error) {
                 console.error("Error de autenticación:", error);
-                document.getElementById('app-container').innerHTML = `<p class="text-red-500">Error de conexión. Intente recargar.</p>`;
+                document.getElementById('app-container').innerHTML = `<p class="text-red-500 text-center font-bold">Error de conexión con la base de datos. Intente recargar la página.</p>`;
             }
         };
 
         const container = document.getElementById('app-container');
 
         window.renderApp = () => {
-            const navUserInfo = document.getElementById('nav-user-info');
-            const navUsername = document.getElementById('nav-username');
+            try {
+                const navUserInfo = document.getElementById('nav-user-info');
+                const navUsername = document.getElementById('nav-username');
 
-            let numbersScrollPos = 0;
-            const numbersScrollContainer = document.getElementById('numbers-scroll-container');
-            if (numbersScrollContainer) numbersScrollPos = numbersScrollContainer.scrollTop;
+                let numbersScrollPos = 0;
+                const numbersScrollContainer = document.getElementById('numbers-scroll-container');
+                if (numbersScrollContainer) numbersScrollPos = numbersScrollContainer.scrollTop;
 
-            let adminScrollPos = 0;
-            const adminScrollContainer = document.getElementById('admin-table-container');
-            if (adminScrollContainer) adminScrollPos = adminScrollContainer.scrollTop;
+                let adminScrollPos = 0;
+                const adminScrollContainer = document.getElementById('admin-table-container');
+                if (adminScrollContainer) adminScrollPos = adminScrollContainer.scrollTop;
 
-            if (!loggedInAppUser) {
-                navUserInfo.classList.add('hidden');
-                renderLogin();
-            } else {
-                navUserInfo.classList.remove('hidden');
-                navUsername.innerHTML = `<i class="fa-solid ${loggedInAppUser.role === 'admin' ? 'fa-user-shield' : 'fa-user'} text-[#f5c66d]"></i> ${loggedInAppUser.username}`;
-                
-                if (loggedInAppUser.role === 'admin') {
-                    renderAdminDashboard();
-                    const newAdminScroll = document.getElementById('admin-table-container');
-                    if (newAdminScroll) newAdminScroll.scrollTop = adminScrollPos;
+                if (!loggedInAppUser) {
+                    if (navUserInfo) navUserInfo.classList.add('hidden');
+                    renderLogin();
                 } else {
-                    if (currentViewTerritoryId) {
-                        renderTerritoryView(currentViewTerritoryId);
-                        const newNumbersScroll = document.getElementById('numbers-scroll-container');
-                        if (newNumbersScroll) newNumbersScroll.scrollTop = numbersScrollPos;
+                    if (navUserInfo) navUserInfo.classList.remove('hidden');
+                    if (navUsername) navUsername.innerHTML = `<i class="fa-solid ${loggedInAppUser.role === 'admin' ? 'fa-user-shield' : 'fa-user'} text-[#f5c66d]"></i> ${loggedInAppUser.username || 'Usuario'}`;
+                    
+                    if (loggedInAppUser.role === 'admin') {
+                        renderAdminDashboard();
+                        const newAdminScroll = document.getElementById('admin-table-container');
+                        if (newAdminScroll) newAdminScroll.scrollTop = adminScrollPos;
+                    } else {
+                        if (currentViewTerritoryId) {
+                            renderTerritoryView(currentViewTerritoryId);
+                            const newNumbersScroll = document.getElementById('numbers-scroll-container');
+                            if (newNumbersScroll) newNumbersScroll.scrollTop = numbersScrollPos;
+                        }
+                        else renderUserDashboard();
                     }
-                    else renderUserDashboard();
                 }
+            } catch (error) {
+                console.error("Error al renderizar:", error);
             }
         };
 
         const renderLogin = () => {
             container.innerHTML = `
                 <div class="max-w-md mx-auto bg-[#2a2a2a] p-10 rounded-3xl shadow-2xl mt-16 flex flex-col items-center border border-[#3a3a3a]">
-                    <img src="./icon.png" alt="Teléfonos App Logo" class="w-24 h-24 mb-6 rounded-2xl shadow-lg" onerror="this.outerHTML='<i class=\\'fa-solid fa-phone text-6xl text-[#f5c66d] mb-6\\'></i>'">
+                    
+                    <!-- Imagen oficial con alternativa segura si no encuentra la imagen -->
+                    <img src="./icon.png" alt="Teléfonos App Logo" class="w-24 h-24 mb-6 rounded-2xl shadow-lg" id="app-logo" onerror="document.getElementById('app-logo').style.display='none'; document.getElementById('fallback-logo').classList.remove('hidden');">
+                    <i id="fallback-logo" class="fa-solid fa-phone text-6xl text-[#f5c66d] mb-6 hidden"></i>
+                    
                     <h2 class="text-3xl font-extrabold text-center mb-10 text-[#ffffff]">Teléfonos App</h2>
                     <form id="loginForm" class="space-y-6 w-full">
                         <div>
@@ -206,46 +214,54 @@
                 </div>
             `;
             
-            // Mostrar campo de contraseña mágicamente solo si el usuario es Admin o Norte
-            document.getElementById('username').addEventListener('input', (e) => {
-                const val = e.target.value.trim().toLowerCase();
-                const pwContainer = document.getElementById('passwordFieldContainer');
-                if (val === 'admin' || val === 'norte') {
-                    pwContainer.classList.remove('hidden');
-                } else {
-                    pwContainer.classList.add('hidden');
-                }
-            });
-
-            document.getElementById('loginForm').addEventListener('submit', (e) => {
-                e.preventDefault();
-                const u = document.getElementById('username').value.trim();
-                const p = document.getElementById('password').value.trim();
-                const uLower = u.toLowerCase();
-                
-                let user;
-                if (uLower === 'admin' || uLower === 'norte') {
-                    user = allUsers.find(user => user.username.toLowerCase() === uLower && user.password === p);
-                } else {
-                    // Para usuarios normales, solo revisamos que el nombre exista
-                    user = allUsers.find(user => user.username.toLowerCase() === uLower);
-                }
-
-                if (user) {
-                    loggedInAppUser = user;
-                    currentViewTerritoryId = null;
-                    localStorage.setItem('savedSessionId', user.id); // Guarda la sesión en el celular
-                    renderApp();
-                } else {
-                    const err = document.getElementById('loginError');
-                    if (uLower === 'admin' || uLower === 'norte') {
-                        err.textContent = "Contraseña incorrecta.";
+            const userInput = document.getElementById('username');
+            if (userInput) {
+                userInput.addEventListener('input', (e) => {
+                    const val = e.target.value.trim().toLowerCase();
+                    const pwContainer = document.getElementById('passwordFieldContainer');
+                    if (val === 'admin' || val === 'norte') {
+                        pwContainer.classList.remove('hidden');
                     } else {
-                        err.textContent = "Usuario no encontrado. Pide al administrador que te registre.";
+                        pwContainer.classList.add('hidden');
                     }
-                    err.classList.remove('hidden');
-                }
-            });
+                });
+            }
+
+            const loginForm = document.getElementById('loginForm');
+            if (loginForm) {
+                loginForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const u = document.getElementById('username').value.trim();
+                    const p = document.getElementById('password').value.trim();
+                    const uLower = u.toLowerCase();
+                    
+                    let user;
+                    if (uLower === 'admin' || uLower === 'norte') {
+                        user = allUsers.find(user => user?.username?.toLowerCase() === uLower && user.password === p);
+                    } else {
+                        user = allUsers.find(user => user?.username?.toLowerCase() === uLower);
+                    }
+
+                    if (user) {
+                        loggedInAppUser = user;
+                        currentViewTerritoryId = null;
+                        try {
+                            localStorage.setItem('savedSessionId', user.id);
+                        } catch (storageError) {
+                            console.warn("Navegador bloquea localStorage, sesión no se guardará permanentemente.");
+                        }
+                        renderApp();
+                    } else {
+                        const err = document.getElementById('loginError');
+                        if (uLower === 'admin' || uLower === 'norte') {
+                            err.textContent = "Contraseña incorrecta.";
+                        } else {
+                            err.textContent = "Usuario no encontrado. Pide al administrador que te registre.";
+                        }
+                        err.classList.remove('hidden');
+                    }
+                });
+            }
         };
 
         const renderAdminDashboard = () => {
@@ -264,26 +280,24 @@
                 return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' });
             };
 
-            // Construir filas de tabla de forma segura
             let tableRows = '';
             if (allTerritories.length === 0) {
                 tableRows = '<tr><td colspan="3" class="p-6 text-center text-[#b3b3b3]">No hay territorios creados.</td></tr>';
             } else {
-                let sortedTerritories = [...allTerritories].sort((a,b) => a.name.localeCompare(b.name));
+                let sortedTerritories = [...allTerritories].sort((a,b) => (a.name || "").localeCompare(b.name || ""));
                 
-                // Aplicar orden prioritario si el botón está activado
                 if (sortActiveFirst) {
                     sortedTerritories.sort((a, b) => {
                         const aActive = a.assignedTo ? 1 : 0;
                         const bActive = b.assignedTo ? 1 : 0;
                         if (aActive !== bActive) return bActive - aActive; 
-                        return a.name.localeCompare(b.name); 
+                        return (a.name || "").localeCompare(b.name || ""); 
                     });
                 }
                 
                 tableRows = sortedTerritories.map(t => {
                     const assignedUser = allUsers.find(u => u.id === t.assignedTo);
-                    const isNorteAssignee = assignedUser && assignedUser.username.toLowerCase() === 'norte';
+                    const isNorteAssignee = assignedUser && assignedUser?.username?.toLowerCase() === 'norte';
                     const prog = getProgress(t, isNorteAssignee);
                     
                     let progressHtml = '';
@@ -300,7 +314,7 @@
                         `;
                     }
                     
-                    const userOptionsHtml = allUsers.filter(u => u.role !== 'admin').map(u => 
+                    const userOptionsHtml = allUsers.filter(u => u.role !== 'admin' && u.username).map(u => 
                         `<option value="${u.id}" ${t.assignedTo === u.id ? 'selected' : ''} class="text-[#ffffff]">${u.username}</option>`
                     ).join('');
 
@@ -328,11 +342,9 @@
                 }).join('');
             }
 
-            // Construir tarjetas de publicadores
-            const publishersCardsHtml = allUsers.filter(u => u.role !== 'admin').map(u => {
+            const publishersCardsHtml = allUsers.filter(u => u.role !== 'admin' && u.username).map(u => {
                 const userTerrs = allTerritories.filter(t => t.assignedTo === u.id);
                 
-                // Ordenar por fecha más reciente
                 const sortedUserTerrs = [...userTerrs].sort((a, b) => {
                     const dateA = a.completedDate ? new Date(a.completedDate).getTime() : (a.assignedDate ? new Date(a.assignedDate).getTime() : 0);
                     const dateB = b.completedDate ? new Date(b.completedDate).getTime() : (b.assignedDate ? new Date(b.assignedDate).getTime() : 0);
@@ -360,15 +372,4 @@
                             <span>${t.completedDate ? `Terminado: ${formatDate(t.completedDate)}` : '-'}</span>
                         </div>
                     </li>`;
-                }).join('');
-                
-                const securityText = u.password ? `<p class="text-[10px] text-[#b3b3b3] font-mono"><i class="fa-solid fa-lock text-[#cde7ac] mr-1"></i> Protegido con contraseña</p>` : `<p class="text-[10px] text-[#b3b3b3] font-mono"><i class="fa-solid fa-bolt text-[#f5c66d] mr-1"></i> Acceso directo</p>`;
-
-                return `
-                <div class="bg-[#1e1e1e] p-5 rounded-2xl border border-[#3a3a3a]">
-                    <div class="flex items-center gap-3 mb-4">
-                        <div class="bg-[#2a2a2a] p-2.5 rounded-full"><i class="fa-solid fa-user text-[#add8e6]"></i></div>
-                        <div>
-                            <h4 class="font-bold text-[#ffffff]">${u.username}</h4>
-                            ${securityText}
-                        
+    
