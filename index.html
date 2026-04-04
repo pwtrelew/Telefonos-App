@@ -372,4 +372,527 @@
                             <span>${t.completedDate ? `Terminado: ${formatDate(t.completedDate)}` : '-'}</span>
                         </div>
                     </li>`;
-    
+                }).join('');
+                
+                const securityText = u.password ? `<p class="text-[10px] text-[#b3b3b3] font-mono"><i class="fa-solid fa-lock text-[#cde7ac] mr-1"></i> Protegido con contraseña</p>` : `<p class="text-[10px] text-[#b3b3b3] font-mono"><i class="fa-solid fa-bolt text-[#f5c66d] mr-1"></i> Acceso directo</p>`;
+
+                return `
+                <div class="bg-[#1e1e1e] p-5 rounded-2xl border border-[#3a3a3a]">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="bg-[#2a2a2a] p-2.5 rounded-full"><i class="fa-solid fa-user text-[#add8e6]"></i></div>
+                        <div>
+                            <h4 class="font-bold text-[#ffffff]">${u.username}</h4>
+                            ${securityText}
+                        </div>
+                    </div>
+                    <div class="bg-[#2a2a2a] rounded-xl p-3">
+                        <h5 class="text-[10px] font-bold text-[#b3b3b3] mb-2 uppercase tracking-wider">Historial de Territorios</h5>
+                        <ul class="space-y-1">
+                            ${terrListHtml || '<li class="text-xs text-[#b3b3b3]">Ninguno</li>'}
+                        </ul>
+                    </div>
+                </div>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <div class="space-y-8">
+                    <!-- 1. Lista de Territorios -->
+                    <div class="bg-[#121212] p-4 sm:p-8 rounded-3xl shadow-xl border border-[#2a2a2a]">
+                        <h3 class="text-2xl font-extrabold mb-6 border-b border-[#2a2a2a] pb-4 text-[#ffffff]"><i class="fa-solid fa-map text-[#f5c66d]"></i> Territorios</h3>
+                        <div id="admin-table-container" class="table-container overflow-x-auto pr-2">
+                            <table class="min-w-full text-left text-sm">
+                                <thead class="bg-[#2a2a2a] sticky top-0 z-10 shadow-sm">
+                                <tr>
+                                    <th class="py-3 px-2 sm:px-4 w-[1%] whitespace-nowrap text-[#b3b3b3] rounded-l-lg">Terr.</th>
+                                    <th class="py-3 px-2 sm:px-4 w-auto text-[#b3b3b3]">
+                                        <div class="flex items-center justify-between pr-2">
+                                            <span>Estado</span>
+                                            <button onclick="toggleSortActive()" class="${sortActiveFirst ? 'bg-[#f5c66d] text-[#1e1e1e]' : 'bg-[#3a3a3a] text-[#b3b3b3] hover:text-[#ffffff]'} px-2 py-1 rounded text-[10px] font-bold transition flex items-center gap-1 shadow-sm" title="Mostrar en uso primero">
+                                                <i class="fa-solid fa-sort"></i> En uso
+                                            </button>
+                                        </div>
+                                    </th>
+                                    <th class="py-3 px-2 sm:px-4 w-[110px] sm:w-1/3 text-[#b3b3b3] rounded-r-lg">Asignado a</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${tableRows}
+                            </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- 2. Estadísticas -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-[#2a2a2a] p-6 rounded-2xl shadow border border-[#3a3a3a]">
+                            <h3 class="text-[#b3b3b3] text-sm font-bold mb-1">Territorios</h3>
+                            <p class="text-3xl font-extrabold text-[#ffffff]">${totalT}</p>
+                        </div>
+                        <div class="bg-[#2a2a2a] p-6 rounded-2xl shadow border border-[#3a3a3a]">
+                            <h3 class="text-[#b3b3b3] text-sm font-bold mb-1">Completados</h3>
+                            <p class="text-3xl font-extrabold text-[#ffffff]">${completedT}</p>
+                        </div>
+                    </div>
+
+                    <!-- 3. Publicadores (Desplegable) -->
+                    <div class="bg-[#2a2a2a] p-8 rounded-2xl shadow-md border border-[#3a3a3a]">
+                        <div class="flex justify-between items-center cursor-pointer group" onclick="togglePublishersAccordion()">
+                            <h3 class="text-xl font-bold text-[#ffffff] group-hover:text-[#add8e6] transition-colors"><i class="fa-solid fa-users text-[#add8e6] mr-2"></i> Publicadores</h3>
+                            <i id="publishers-chevron" class="fa-solid ${pubChevron} text-[#b3b3b3] group-hover:text-[#ffffff] transition-colors text-lg"></i>
+                        </div>
+                        <div id="publishers-container" class="${pubHidden}">
+                            <div class="border-t border-[#3a3a3a] mt-6 pt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                ${publishersCardsHtml}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4. Crear Usuario (Desplegable) -->
+                    <div class="bg-[#2a2a2a] p-8 rounded-2xl shadow-md border border-[#3a3a3a]">
+                        <div class="flex justify-between items-center cursor-pointer group" onclick="toggleUserAccordion()">
+                            <h3 class="text-xl font-bold text-[#ffffff] group-hover:text-[#f5c66d] transition-colors"><i class="fa-solid fa-user-plus text-[#f5c66d] mr-2"></i> Nuevo Usuario</h3>
+                            <i id="user-chevron" class="fa-solid ${userChevron} text-[#b3b3b3] group-hover:text-[#ffffff] transition-colors text-lg"></i>
+                        </div>
+                        <div id="user-form-container" class="${userHidden}">
+                            <div class="border-t border-[#3a3a3a] mt-6 pt-6">
+                                <form id="createUserForm" class="space-y-5 max-w-xl mx-auto">
+                                    <input type="text" id="newUsername" placeholder="Nombre del nuevo publicador" class="w-full px-5 py-3 border border-[#3a3a3a] rounded-xl bg-[#3a3a3a] text-[#ffffff] placeholder-[#b3b3b3] focus:outline-none focus:ring-2 focus:ring-[#f5c66d]" required>
+                                    <button type="submit" class="w-full bg-[#f5c66d] text-[#1e1e1e] font-extrabold py-3 rounded-xl hover:bg-[#ffdf91] transition duration-200">Crear Publicador</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            allTerritories.forEach(t => {
+                const selectEl = document.getElementById(`assign-${t.id}`);
+                if (selectEl) selectEl.value = t.assignedTo || "";
+            });
+
+            document.getElementById('createUserForm')?.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const u = document.getElementById('newUsername').value.trim();
+                if (allUsers.find(user => user?.username?.toLowerCase() === u.toLowerCase())) { alert("El usuario ya existe"); return; }
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'users'), { username: u, password: "", role: 'user' });
+                document.getElementById('newUsername').value = '';
+            });
+        };
+
+        const renderUserDashboard = () => {
+            const myTerritories = allTerritories.filter(t => t.assignedTo === loggedInAppUser.id);
+            
+            const statsByMonth = {};
+            const myCompletedTerritories = myTerritories.filter(t => t.status === 'Completado' && t.completedDate);
+            myCompletedTerritories.forEach(t => {
+                const d = new Date(t.completedDate);
+                const monthYear = d.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+                statsByMonth[monthYear] = (statsByMonth[monthYear] || 0) + 1;
+            });
+
+            let cardsHtml = '';
+            if (myTerritories.length === 0) {
+                cardsHtml = '<p class="text-[#b3b3b3] col-span-full py-4 px-2 text-center bg-[#1e1e1e] rounded-xl">No tienes territorios asignados en este momento.</p>';
+            } else {
+                cardsHtml = myTerritories.map(t => {
+                    let displayStatus = (t.status === 'Ronda 1' || t.status === 'Ronda 2') ? 'En curso' : t.status;
+                    let statusColor = 'bg-[#1e1e1e] border-[#3a3a3a] text-[#ffffff]';
+                    let icon = 'fa-map text-[#b3b3b3]';
+                    let statusTextColor = 'text-[#b3b3b3]';
+                    let progressFillColor = 'bg-[#f5c66d]';
+
+                    const isNorteAssignee = loggedInAppUser?.username?.toLowerCase() === 'norte';
+                    const prog = getProgress(t, isNorteAssignee);
+
+                    if (displayStatus === 'Completado' || (prog.made === prog.required && prog.required > 0)) { 
+                        statusColor = 'bg-[#1e1e1e] border-[#cde7ac] text-[#ffffff]'; 
+                        icon = 'fa-check-circle text-[#cde7ac]'; 
+                        statusTextColor = 'text-[#cde7ac]';
+                        progressFillColor = 'bg-[#cde7ac]';
+                        displayStatus = 'Completado';
+                    } else if (t.assignedTo) {
+                        statusColor = 'bg-[#1e1e1e] border-[#f5c66d] text-[#ffffff]'; 
+                        icon = 'fa-phone text-[#f5c66d]'; 
+                        statusTextColor = 'text-[#f5c66d]';
+                        displayStatus = 'En curso';
+                    }
+
+                    let progressText = `${prog.made}/${prog.required}`;
+                    let percentage = prog.required === 0 ? 0 : (prog.made / prog.required) * 100;
+
+                    return `
+                    <div onclick="openTerritory('${t.id}')" class="${statusColor} border rounded-3xl p-6 cursor-pointer hover:shadow-2xl transition relative overflow-hidden group flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-extrabold text-2xl">${t.name}</h3>
+                                <i class="fa-solid ${icon} text-3xl"></i>
+                            </div>
+                            <p class="text-sm font-bold mb-3 ${statusTextColor}">${displayStatus}</p>
+                            <div class="w-full bg-[#3a3a3a] rounded-full h-3 mb-2">
+                                <div class="${progressFillColor} h-3 rounded-full" style="width: ${percentage}%"></div>
+                            </div>
+                            <p class="text-xs text-[#b3b3b3] text-right font-medium">${progressText}</p>
+                        </div>
+                        <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition flex items-center justify-center">
+                            <span class="opacity-0 group-hover:opacity-100 bg-[#f5c66d] text-[#1e1e1e] px-4 py-1.5 rounded-full shadow-lg text-sm font-extrabold transition">Abrir</span>
+                        </div>
+                    </div>
+                    `;
+                }).join('');
+            }
+
+            let statsHtml = '';
+            if (Object.keys(statsByMonth).length === 0) {
+                statsHtml = '<p class="text-[#b3b3b3] col-span-full py-4 px-2 text-center bg-[#1e1e1e] rounded-xl">Aún no hay registros de territorios completados.</p>';
+            } else {
+                statsHtml = Object.entries(statsByMonth).map(([month, count]) => `
+                    <div class="bg-[#1e1e1e] border border-[#3a3a3a] rounded-2xl p-6 text-center shadow-inner">
+                        <p class="text-[#b3b3b3] text-sm font-bold mb-2 capitalize">${month}</p>
+                        <p class="text-5xl font-extrabold text-[#add8e6]">${count}</p>
+                    </div>
+                `).join('');
+            }
+
+            const isNorte = loggedInAppUser?.username?.toLowerCase() === 'norte';
+            const greetingTitle = isNorte ? 'Territorios asignados a la congregación' : `Hola ${loggedInAppUser.username}!`;
+            const statsTitle = isNorte ? 'Estadísticas' : 'Mis estadísticas';
+            const territoriesTitle = isNorte ? 'Territorios' : 'Mis Territorios';
+
+            container.innerHTML = `
+                <div class="space-y-8">
+                    <!-- Mensaje de bienvenida -->
+                    <div class="px-2 pt-2">
+                        <h1 class="text-3xl font-extrabold text-[#ffffff]">${greetingTitle}</h1>
+                    </div>
+
+                    <!-- Cuadro principal -->
+                    <div class="bg-[#2a2a2a] p-8 rounded-3xl shadow-lg border border-[#3a3a3a]">
+                        <h2 class="text-3xl font-extrabold mb-8 text-[#ffffff]"><i class="fa-solid fa-clipboard-list text-[#f5c66d]"></i> ${territoriesTitle}</h2>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                            ${cardsHtml}
+                        </div>
+                    </div>
+
+                    <!-- Estadísticas -->
+                    <div class="bg-[#2a2a2a] p-8 rounded-3xl shadow-lg border border-[#3a3a3a]">
+                        <h3 class="text-2xl font-extrabold mb-6 text-[#ffffff]"><i class="fa-solid fa-chart-pie text-[#add8e6]"></i> ${statsTitle}</h3>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-6">
+                            ${statsHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+        };
+
+        const renderTerritoryView = (tId) => {
+            const territory = allTerritories.find(t => t.id === tId);
+            if (!territory) { currentViewTerritoryId = null; renderApp(); return; }
+
+            const isNorte = loggedInAppUser && loggedInAppUser?.username?.toLowerCase() === 'norte';
+            
+            const rowsHtml = (territory.numbers || []).map((num, idx) => {
+                const optHtml1 = OpcionesLlamada.map(opt => `<option value="${opt}" ${num.result === opt ? 'selected' : ''} class="text-[#ffffff]">${opt}</option>`).join('');
+                
+                let colsHtml = '';
+                if (isNorte) {
+                    colsHtml = `
+                    <td class="py-2 px-3">
+                        <input type="date" value="${num.date || ''}" onchange="updateNumberField('${territory.id}', ${idx}, 'date', this.value)" class="w-full border border-[#3a3a3a] rounded-lg py-1 px-2 text-xs bg-[#1e1e1e] text-[#ffffff] focus:ring-1 focus:ring-[#f5c66d]">
+                    </td>
+                    <td class="py-2 px-3">
+                        <input type="text" placeholder="Nombre..." value="${num.customAssignee || ''}" onchange="updateNumberField('${territory.id}', ${idx}, 'customAssignee', this.value)" class="w-full border border-[#3a3a3a] rounded-lg py-1 px-2 text-xs bg-[#1e1e1e] text-[#ffffff] focus:ring-1 focus:ring-[#f5c66d]">
+                    </td>
+                    <td class="py-2 px-3 rounded-r-lg">
+                        <select onchange="updateResult('${territory.id}', ${idx}, 'result', this.value)" class="w-full min-w-[120px] border border-[#3a3a3a] rounded-lg py-1.5 px-2.5 bg-[#2a2a2a] text-[#ffffff] focus:ring-1 focus:ring-[#f5c66d] outline-none text-xs cursor-pointer">
+                            ${optHtml1}
+                        </select>
+                    </td>
+                    `;
+                } else {
+                    const optHtml2 = OpcionesLlamada.map(opt => `<option value="${opt}" ${num.result2 === opt ? 'selected' : ''} class="text-[#ffffff]">${opt}</option>`).join('');
+                    colsHtml = `
+                    <td class="py-2 px-3">
+                        <select onchange="updateResult('${territory.id}', ${idx}, 'result', this.value)" class="w-full min-w-[110px] border border-[#3a3a3a] rounded-lg py-1.5 px-2 bg-[#2a2a2a] text-[#ffffff] focus:ring-1 focus:ring-[#f5c66d] outline-none text-xs cursor-pointer">
+                            ${optHtml1}
+                        </select>
+                    </td>
+                    <td class="py-2 px-3 rounded-r-lg">
+                        <select onchange="updateResult('${territory.id}', ${idx}, 'result2', this.value)" class="w-full min-w-[110px] border border-[#3a3a3a] rounded-lg py-1.5 px-2 bg-[#2a2a2a] text-[#ffffff] focus:ring-1 focus:ring-[#f5c66d] outline-none text-xs cursor-pointer">
+                            ${optHtml2}
+                        </select>
+                    </td>
+                    `;
+                }
+
+                const isCalled = num.result && num.result !== "-";
+
+                return `
+                <tr class="hover:bg-[#2a2a2a] transition-colors ${isCalled ? 'bg-[#1e1e1e] opacity-70' : ''} rounded-lg">
+                    <td class="py-2 px-3 font-bold ${isNorte ? 'text-xs' : 'text-base'} text-[#ffffff] rounded-l-lg tracking-wider whitespace-nowrap">
+                        <div class="flex items-center gap-2">
+                            <span>${num.phone}</span>
+                            <button onclick="copyPhone('${num.phone}', this)" class="text-[#b3b3b3] hover:text-[#ffffff] p-1 rounded ml-1" title="Copiar número">
+                                <i class="fa-regular fa-copy"></i>
+                            </button>
+                        </div>
+                    </td>
+                    ${colsHtml}
+                </tr>
+                `;
+            }).join('');
+
+            let theadHtml = '';
+            if (isNorte) {
+                theadHtml = `
+                <tr>
+                    <th class="py-2 px-3 w-1/4 text-[#b3b3b3] rounded-l-lg">Teléfono</th>
+                    <th class="py-2 px-3 w-1/4 text-[#b3b3b3]">Fecha</th>
+                    <th class="py-2 px-3 w-1/4 text-[#b3b3b3]">Asignado</th>
+                    <th class="py-2 px-3 w-1/4 text-[#b3b3b3] rounded-r-lg">Resultado</th>
+                </tr>`;
+            } else {
+                theadHtml = `
+                <tr>
+                    <th class="py-2 px-3 w-1/3 text-[#b3b3b3] rounded-l-lg">Teléfono</th>
+                    <th class="py-2 px-3 w-1/3 text-[#b3b3b3]">1ra Vuelta</th>
+                    <th class="py-2 px-3 w-1/3 text-[#b3b3b3] rounded-r-lg">2da Vuelta</th>
+                </tr>`;
+            }
+
+            let displayStatus = (territory.status === 'Ronda 1' || territory.status === 'Ronda 2') ? 'En curso' : territory.status;
+
+            container.innerHTML = `
+                <div class="bg-[#121212] rounded-3xl shadow-xl overflow-hidden flex flex-col h-[85vh] border border-[#2a2a2a]">
+                    <!-- Header -->
+                    <div class="bg-[#1e1e1e] p-6 border-b border-[#2a2a2a] flex justify-between items-center">
+                        <div>
+                            <button onclick="closeTerritory()" class="text-[#f5c66d] hover:text-[#ffdf91] mr-4 text-sm font-bold">
+                                <i class="fa-solid fa-arrow-left"></i> Volver
+                            </button>
+                            <span class="font-extrabold text-2xl md:text-3xl text-[#ffffff]">${territory.name}</span>
+                        </div>
+                        <span class="bg-[#2a2a2a] text-[#ffffff] px-4 py-1.5 rounded-full text-xs font-bold border border-[#3a3a3a]">
+                            ${displayStatus}
+                        </span>
+                    </div>
+
+                    <!-- Lista -->
+                    <div id="numbers-scroll-container" class="flex-1 overflow-y-auto p-2">
+                        <table class="min-w-full text-left text-sm">
+                            <thead class="bg-[#1e1e1e] sticky top-0 shadow-lg z-10">
+                                ${theadHtml}
+                            </thead>
+                            <tbody class="divide-y divide-[#2a2a2a]">
+                                ${rowsHtml}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    ${displayStatus === 'Completado' ? `
+                        <div class="bg-[#cde7ac] p-4 md:p-6 text-center text-[#1e1e1e] font-extrabold border-t border-[#cde7ac] flex items-center justify-center gap-3">
+                            <i class="fa-solid fa-check-double text-xl md:text-2xl"></i> ¡Territorio completado en su totalidad!
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        };
+
+        // ---- ACCIONES ----
+        window.toggleSortActive = () => {
+            sortActiveFirst = !sortActiveFirst;
+            renderApp();
+        };
+
+        window.toggleUserAccordion = () => {
+            isUserAccordionOpen = !isUserAccordionOpen;
+            const content = document.getElementById('user-form-container');
+            const chevron = document.getElementById('user-chevron');
+            if (isUserAccordionOpen) {
+                content.classList.remove('hidden');
+                chevron.classList.replace('fa-chevron-down', 'fa-chevron-up');
+            } else {
+                content.classList.add('hidden');
+                chevron.classList.replace('fa-chevron-up', 'fa-chevron-down');
+            }
+        };
+
+        window.togglePublishersAccordion = () => {
+            isPublishersAccordionOpen = !isPublishersAccordionOpen;
+            const content = document.getElementById('publishers-container');
+            const chevron = document.getElementById('publishers-chevron');
+            if (isPublishersAccordionOpen) {
+                content.classList.remove('hidden');
+                chevron.classList.replace('fa-chevron-down', 'fa-chevron-up');
+            } else {
+                content.classList.add('hidden');
+                chevron.classList.replace('fa-chevron-up', 'fa-chevron-down');
+            }
+        };
+
+        window.copyPhone = (phone, btnElement) => {
+            const el = document.createElement('textarea');
+            el.value = phone;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            
+            if (btnElement) {
+                const icon = btnElement.querySelector('i');
+                icon.className = 'fa-solid fa-check text-[#cde7ac]';
+                setTimeout(() => { icon.className = 'fa-regular fa-copy'; }, 1500);
+            }
+        };
+
+        window.logout = () => { 
+            loggedInAppUser = null; 
+            currentViewTerritoryId = null; 
+            try { localStorage.removeItem('savedSessionId'); } catch(e){}
+            renderApp(); 
+        };
+        window.openTerritory = (id) => { currentViewTerritoryId = id; renderApp(); };
+        window.closeTerritory = () => { currentViewTerritoryId = null; renderApp(); };
+
+        window.unassignTerritory = (tId, tName) => {
+            if(confirm(`¿Seguro que deseas quitarle el Territorio ${tName} al publicador asignado? Volverá a estar libre, pendiente y su progreso regresará a cero.`)) {
+                assignTerritory(tId, "");
+            }
+        };
+
+        window.assignTerritory = async (tId, userId) => {
+            try {
+                const tRef = doc(db, 'artifacts', appId, 'public', 'data', 'territories', tId);
+                const territory = allTerritories.find(t => t.id === tId);
+                let newStatus = territory.status;
+                let updateData = { assignedTo: userId || null };
+                
+                if (userId && newStatus === 'Pendiente') newStatus = 'En curso';
+                
+                if (!userId) { 
+                    newStatus = 'Pendiente'; 
+                    updateData.assignedDate = null; 
+                    updateData.completedDate = null; 
+                    updateData.numbers = (territory.numbers || []).map(n => ({
+                        ...n,
+                        result: "-",
+                        result2: "-",
+                        checked1: false,
+                        checked2: false
+                    }));
+                }
+                
+                if (userId && territory.assignedTo !== userId) { 
+                    updateData.assignedDate = new Date().toISOString(); 
+                    updateData.completedDate = null; 
+                }
+
+                updateData.status = newStatus;
+                await updateDoc(tRef, updateData);
+            } catch (err) { console.error("Error asignando:", err); }
+        };
+
+        window.updateResult = async (tId, numIndex, field, newResult) => {
+            const territory = allTerritories.find(t => t.id === tId);
+            if (!territory) return;
+            
+            territory.numbers[numIndex][field] = newResult;
+
+            const assignedUser = allUsers.find(u => u.id === territory.assignedTo);
+            const isNorteAssignee = assignedUser && assignedUser?.username?.toLowerCase() === 'norte';
+
+            const prog = getProgress(territory, isNorteAssignee);
+            const isComplete = (prog.made === prog.required && prog.required > 0);
+
+            let newStatus = territory.assignedTo ? 'En curso' : 'Pendiente';
+            let completedDate = territory.completedDate || null;
+
+            if (isComplete) {
+                newStatus = 'Completado';
+                if (territory.status !== 'Completado') completedDate = new Date().toISOString();
+            } else {
+                if (territory.status === 'Completado') completedDate = null;
+            }
+
+            try { 
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'territories', tId), { 
+                    numbers: territory.numbers,
+                    status: newStatus,
+                    completedDate: completedDate
+                }); 
+            } 
+            catch (err) { console.error(err); }
+        };
+
+        window.updateNumberField = async (tId, numIndex, field, value) => {
+            const territory = allTerritories.find(t => t.id === tId);
+            if (!territory) return;
+            territory.numbers[numIndex][field] = value;
+            try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'territories', tId), { numbers: territory.numbers }); } 
+            catch (err) { console.error(err); }
+        };
+
+        // ---- INICIALIZACIÓN Y SUSCRIPCIONES A FIREBASE ----
+        const initDataListeners = () => {
+            const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'users');
+            onSnapshot(usersRef, (snapshot) => {
+                const users = [];
+                snapshot.forEach(doc => users.push({ id: doc.id, ...doc.data() }));
+                
+                if (users.length === 0) { addDoc(usersRef, { username: 'admin', password: 'admin', role: 'admin' }); }
+                if (users.length > 0 && !users.find(u => u?.username?.toLowerCase() === 'norte')) {
+                    addDoc(usersRef, { username: 'Norte', password: 'norte', role: 'user' });
+                }
+                
+                if (users.length > 0) {
+                    allUsers = users;
+                    
+                    if (!loggedInAppUser) {
+                        let savedId = null;
+                        try { savedId = localStorage.getItem('savedSessionId'); } catch(e){}
+                        
+                        if (savedId) {
+                            const found = allUsers.find(u => u.id === savedId);
+                            if (found) loggedInAppUser = found;
+                        }
+                    }
+
+                    if (loggedInAppUser) {
+                        const updatedMe = allUsers.find(u => u.id === loggedInAppUser.id);
+                        if (updatedMe) loggedInAppUser = updatedMe;
+                    }
+                    
+                    // Aseguramos que renderApp siempre corra después de cargar usuarios
+                    if(loggedInAppUser || window.hasLoadedUsers) renderApp();
+                    window.hasLoadedUsers = true;
+                }
+            }, (error) => console.error(error));
+
+            const terrRef = collection(db, 'artifacts', appId, 'public', 'data', 'territories');
+            onSnapshot(terrRef, (snapshot) => {
+                const terrs = [];
+                snapshot.forEach(doc => terrs.push({ id: doc.id, ...doc.data() }));
+                allTerritories = terrs;
+                
+                // Aseguramos que renderApp siempre corra después de cargar territorios
+                if(loggedInAppUser || window.hasLoadedTerritories) renderApp();
+                window.hasLoadedTerritories = true;
+            }, (error) => console.error(error));
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            firebaseUser = user;
+            if (user) { 
+                initDataListeners(); 
+                // Se llama para dibujar el login en caso de que tarden los datos
+                renderApp(); 
+            }
+        });
+
+        initAuth();
+
+    </script>
+</body>
+</html>
+
+
