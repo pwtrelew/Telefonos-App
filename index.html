@@ -239,6 +239,12 @@
             const pubHidden = isPublishersAccordionOpen ? '' : 'hidden';
             const pubChevron = isPublishersAccordionOpen ? 'fa-chevron-up' : 'fa-chevron-down';
 
+            const formatDate = (isoStr) => {
+                if (!isoStr) return '-';
+                const d = new Date(isoStr);
+                return d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' });
+            };
+
             // Construir filas de tabla de forma segura
             let tableRows = '';
             if (allTerritories.length === 0) {
@@ -306,16 +312,34 @@
             // Construir tarjetas de publicadores
             const publishersCardsHtml = allUsers.filter(u => u.role !== 'admin').map(u => {
                 const userTerrs = allTerritories.filter(t => t.assignedTo === u.id);
-                const terrListHtml = userTerrs.map(t => {
+                
+                // Ordenar por fecha más reciente (de mayor a menor actividad)
+                const sortedUserTerrs = [...userTerrs].sort((a, b) => {
+                    const dateA = a.completedDate ? new Date(a.completedDate).getTime() : (a.assignedDate ? new Date(a.assignedDate).getTime() : 0);
+                    const dateB = b.completedDate ? new Date(b.completedDate).getTime() : (b.assignedDate ? new Date(b.assignedDate).getTime() : 0);
+                    return dateB - dateA;
+                });
+
+                const terrListHtml = sortedUserTerrs.map(t => {
                     let statusColor = "text-[#b3b3b3]";
                     if(t.status === 'Completado') statusColor = "text-[#cde7ac]";
                     if(t.status === 'En curso') statusColor = "text-[#f5c66d]";
+                    
                     return `
-                    <li class="text-xs flex justify-between items-center border-b border-[#3a3a3a] py-1.5 last:border-0">
-                        <div><span class="text-[#ffffff] font-bold">Terr. ${t.name}</span> <span class="${statusColor} ml-1">${t.status}</span></div>
-                        <button onclick="unassignTerritory('${t.id}', '${t.name}')" class="text-red-400 hover:text-red-500 p-1" title="Quitar asignación">
-                            <i class="fa-solid fa-circle-minus"></i>
-                        </button>
+                    <li class="flex flex-col border-b border-[#3a3a3a] py-2 last:border-0">
+                        <div class="flex justify-between items-center mb-1">
+                            <div class="flex items-center gap-2">
+                                <span class="text-[#ffffff] font-bold text-xs">Terr. ${t.name}</span>
+                                <span class="${statusColor} text-[10px] font-bold uppercase">${t.status}</span>
+                            </div>
+                            <button onclick="unassignTerritory('${t.id}', '${t.name}')" class="text-red-400 hover:text-red-500 p-1" title="Quitar asignación">
+                                <i class="fa-solid fa-circle-minus"></i>
+                            </button>
+                        </div>
+                        <div class="flex justify-between text-[10px] text-[#b3b3b3]">
+                            <span>Asignado: ${formatDate(t.assignedDate)}</span>
+                            <span>${t.completedDate ? `Terminado: ${formatDate(t.completedDate)}` : '-'}</span>
+                        </div>
                     </li>`;
                 }).join('');
                 
@@ -329,7 +353,7 @@
                         </div>
                     </div>
                     <div class="bg-[#2a2a2a] rounded-xl p-3">
-                        <h5 class="text-[10px] font-bold text-[#b3b3b3] mb-2 uppercase tracking-wider">Territorios asignados</h5>
+                        <h5 class="text-[10px] font-bold text-[#b3b3b3] mb-2 uppercase tracking-wider">Historial de Territorios</h5>
                         <ul class="space-y-1">
                             ${terrListHtml || '<li class="text-xs text-[#b3b3b3]">Ninguno</li>'}
                         </ul>
@@ -367,7 +391,7 @@
                     </div>
 
                     <!-- 2. Estadísticas -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="bg-[#2a2a2a] p-6 rounded-2xl shadow border border-[#3a3a3a]">
                             <h3 class="text-[#b3b3b3] text-sm font-bold mb-1">Territorios</h3>
                             <p class="text-3xl font-extrabold text-[#ffffff]">${totalT}</p>
@@ -375,10 +399,6 @@
                         <div class="bg-[#2a2a2a] p-6 rounded-2xl shadow border border-[#3a3a3a]">
                             <h3 class="text-[#b3b3b3] text-sm font-bold mb-1">Completados</h3>
                             <p class="text-3xl font-extrabold text-[#ffffff]">${completedT}</p>
-                        </div>
-                        <div class="bg-[#2a2a2a] p-6 rounded-2xl shadow border border-[#3a3a3a] flex flex-col justify-center items-start">
-                             <h3 class="text-[#b3b3b3] text-sm font-bold mb-2">Herramientas</h3>
-                             <span class="text-[#b3b3b3] text-sm">Panel Activo</span>
                         </div>
                     </div>
 
@@ -939,6 +959,7 @@
     </script>
 </body>
 </html>
+
 
 
 
