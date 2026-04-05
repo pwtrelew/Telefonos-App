@@ -370,4 +370,788 @@
                 }).join('');
             }
 
-            const
+            const publishersCardsHtml = allUsers.filter(u => u.role !== 'admin' && u.username).map(u => {
+                const userTerrs = allTerritories.filter(t => t.assignedTo === u.id);
+                
+                const sortedUserTerrs = [...userTerrs].sort((a, b) => {
+                    const dateA = a.completedDate ? new Date(a.completedDate).getTime() : (a.assignedDate ? new Date(a.assignedDate).getTime() : 0);
+                    const dateB = b.completedDate ? new Date(b.completedDate).getTime() : (b.assignedDate ? new Date(b.assignedDate).getTime() : 0);
+                    return dateB - dateA;
+                });
+
+                const terrListHtml = sortedUserTerrs.map(t => {
+                    let statusColor = "text-[#b3b3b3]";
+                    if(t.status === 'Completado') statusColor = "text-[#cde7ac]";
+                    if(t.status === 'En curso') statusColor = "text-[#f5c66d]";
+                    
+                    return `
+                    <li class="flex flex-col border-b border-[#3a3a3a] py-2 last:border-0">
+                        <div class="flex justify-between items-center mb-1">
+                            <div class="flex items-center gap-2">
+                                <span class="text-[#ffffff] font-bold text-xs">Terr. ${t.name}</span>
+                                <span class="${statusColor} text-[10px] font-bold uppercase">${t.status}</span>
+                            </div>
+                            <button onclick="unassignTerritory('${t.id}', '${t.name}')" class="text-red-400 hover:text-red-500 p-1" title="Quitar asignación">
+                                <i class="fa-solid fa-circle-minus"></i>
+                            </button>
+                        </div>
+                        <div class="flex justify-between text-[10px] text-[#b3b3b3]">
+                            <span>Asignado: ${formatDate(t.assignedDate)}</span>
+                            <span>${t.completedDate ? `Terminado: ${formatDate(t.completedDate)}` : '-'}</span>
+                        </div>
+                    </li>`;
+                }).join('');
+                
+                const securityText = u.password ? `<p class="text-[10px] text-[#b3b3b3] font-mono"><i class="fa-solid fa-lock text-[#cde7ac] mr-1"></i> Protegido con contraseña</p>` : `<p class="text-[10px] text-[#b3b3b3] font-mono"><i class="fa-solid fa-bolt text-[#f5c66d] mr-1"></i> Acceso directo</p>`;
+
+                return `
+                <div class="bg-[#1e1e1e] p-5 rounded-2xl border border-[#3a3a3a]">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="bg-[#2a2a2a] p-2.5 rounded-full"><i class="fa-solid fa-user text-[#add8e6]"></i></div>
+                        <div class="truncate">
+                            <h4 class="font-bold text-[#ffffff] truncate">${u.username}</h4>
+                            ${securityText}
+                        </div>
+                    </div>
+                    <div class="bg-[#2a2a2a] rounded-xl p-3">
+                        <h5 class="text-[10px] font-bold text-[#b3b3b3] mb-2 uppercase tracking-wider">Historial de Territorios</h5>
+                        <ul class="space-y-1">
+                            ${terrListHtml || '<li class="text-xs text-[#b3b3b3]">Ninguno</li>'}
+                        </ul>
+                    </div>
+                </div>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <div class="space-y-8">
+                    <div class="bg-[#121212] p-4 sm:p-8 rounded-3xl shadow-xl border border-[#2a2a2a]">
+                        <h3 class="text-2xl font-extrabold mb-6 border-b border-[#2a2a2a] pb-4 text-[#ffffff]"><i class="fa-solid fa-map text-[#f5c66d]"></i> Territorios</h3>
+                        <div id="admin-table-container" class="table-container overflow-x-auto pr-2">
+                            <table class="min-w-full text-left text-sm">
+                                <thead class="bg-[#2a2a2a] sticky top-0 z-10 shadow-sm">
+                                <tr>
+                                    <th class="py-3 px-2 sm:px-4 w-[1%] whitespace-nowrap text-[#b3b3b3] rounded-l-lg">Terr.</th>
+                                    <th class="py-3 px-2 sm:px-4 w-auto text-[#b3b3b3]">
+                                        <div class="flex items-center justify-between pr-2">
+                                            <span>Estado</span>
+                                            <button onclick="toggleSortActive()" class="${sortActiveFirst ? 'bg-[#f5c66d] text-[#1e1e1e]' : 'bg-[#3a3a3a] text-[#b3b3b3] hover:text-[#ffffff]'} px-2 py-1 rounded text-[10px] font-bold transition flex items-center gap-1 shadow-sm" title="Mostrar en uso primero">
+                                                <i class="fa-solid fa-sort"></i> En uso
+                                            </button>
+                                        </div>
+                                    </th>
+                                    <th class="py-3 px-2 sm:px-4 w-[120px] sm:w-1/3 text-[#b3b3b3] rounded-r-lg">Asignado a</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${tableRows}
+                            </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-[#2a2a2a] p-6 rounded-2xl shadow border border-[#3a3a3a]">
+                            <h3 class="text-[#b3b3b3] text-sm font-bold mb-1">Territorios</h3>
+                            <p class="text-3xl font-extrabold text-[#ffffff]">${totalT}</p>
+                        </div>
+                        <div class="bg-[#2a2a2a] p-6 rounded-2xl shadow border border-[#3a3a3a]">
+                            <h3 class="text-[#b3b3b3] text-sm font-bold mb-1">Completados</h3>
+                            <p class="text-3xl font-extrabold text-[#ffffff]">${completedT}</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-[#2a2a2a] p-8 rounded-2xl shadow-md border border-[#3a3a3a]">
+                        <div class="flex justify-between items-center cursor-pointer group" onclick="togglePublishersAccordion()">
+                            <h3 class="text-xl font-bold text-[#ffffff] group-hover:text-[#add8e6] transition-colors"><i class="fa-solid fa-users text-[#add8e6] mr-2"></i> Publicadores</h3>
+                            <i id="publishers-chevron" class="fa-solid ${pubChevron} text-[#b3b3b3] group-hover:text-[#ffffff] transition-colors text-lg"></i>
+                        </div>
+                        <div id="publishers-container" class="${pubHidden}">
+                            <div class="border-t border-[#3a3a3a] mt-6 pt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                ${publishersCardsHtml}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-[#2a2a2a] p-8 rounded-2xl shadow-md border border-[#3a3a3a]">
+                        <div class="flex justify-between items-center cursor-pointer group" onclick="toggleUserAccordion()">
+                            <h3 class="text-xl font-bold text-[#ffffff] group-hover:text-[#f5c66d] transition-colors"><i class="fa-solid fa-user-plus text-[#f5c66d] mr-2"></i> Nuevo Usuario</h3>
+                            <i id="user-chevron" class="fa-solid ${userChevron} text-[#b3b3b3] group-hover:text-[#ffffff] transition-colors text-lg"></i>
+                        </div>
+                        <div id="user-form-container" class="${userHidden}">
+                            <div class="border-t border-[#3a3a3a] mt-6 pt-6">
+                                <form id="createUserForm" class="space-y-5 max-w-xl mx-auto">
+                                    <input type="text" id="newUsername" placeholder="Nombre del nuevo publicador" class="w-full px-5 py-3 border border-[#3a3a3a] rounded-xl bg-[#3a3a3a] text-[#ffffff] placeholder-[#b3b3b3] focus:outline-none focus:ring-2 focus:ring-[#f5c66d]" required>
+                                    <button type="submit" class="w-full bg-[#f5c66d] text-[#1e1e1e] font-extrabold py-3 rounded-xl hover:bg-[#ffdf91] transition duration-200">Crear Publicador</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const formElement = document.getElementById('createUserForm');
+            if(formElement) {
+                formElement.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const input = document.getElementById('newUsername');
+                    if(!input) return;
+                    
+                    const u = input.value.trim();
+                    if (allUsers.find(user => user?.username?.toLowerCase() === u.toLowerCase())) { alert("El usuario ya existe"); return; }
+                    
+                    try {
+                        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'users'), { username: u, password: "", role: 'user' });
+                        input.value = '';
+                    } catch (err) { console.error(err); }
+                });
+            }
+        };
+
+        const renderUserDashboard = () => {
+            const myTerritories = allTerritories.filter(t => t.assignedTo === loggedInAppUser.id);
+            
+            const statsByMonth = {};
+            const myCompletedTerritories = myTerritories.filter(t => t.status === 'Completado' && t.completedDate);
+            myCompletedTerritories.forEach(t => {
+                const d = new Date(t.completedDate);
+                const monthYear = d.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+                statsByMonth[monthYear] = (statsByMonth[monthYear] || 0) + 1;
+            });
+
+            let cardsHtml = '';
+            if (myTerritories.length === 0) {
+                cardsHtml = '<p class="text-[#b3b3b3] col-span-full py-4 px-2 text-center bg-[#1e1e1e] rounded-xl">No tienes territorios asignados en este momento.</p>';
+            } else {
+                cardsHtml = myTerritories.map(t => {
+                    let displayStatus = (t.status === 'Ronda 1' || t.status === 'Ronda 2') ? 'En curso' : t.status;
+                    let statusColor = 'bg-[#1e1e1e] border-[#3a3a3a] text-[#ffffff]';
+                    let icon = 'fa-map text-[#b3b3b3]';
+                    let statusTextColor = 'text-[#b3b3b3]';
+                    let progressFillColor = 'bg-[#f5c66d]';
+
+                    const isNorteAssignee = loggedInAppUser?.username?.toLowerCase() === 'norte';
+                    const prog = getProgress(t, isNorteAssignee);
+
+                    if (displayStatus === 'Completado' || (prog.made === prog.required && prog.required > 0)) { 
+                        statusColor = 'bg-[#1e1e1e] border-[#cde7ac] text-[#ffffff]'; 
+                        icon = 'fa-check-circle text-[#cde7ac]'; 
+                        statusTextColor = 'text-[#cde7ac]';
+                        progressFillColor = 'bg-[#cde7ac]';
+                        displayStatus = 'Completado';
+                    } else if (t.assignedTo) {
+                        statusColor = 'bg-[#1e1e1e] border-[#f5c66d] text-[#ffffff]'; 
+                        icon = 'fa-phone text-[#f5c66d]'; 
+                        statusTextColor = 'text-[#f5c66d]';
+                        displayStatus = 'En curso';
+                    }
+
+                    let progressText = `${prog.made}/${prog.required}`;
+                    let percentage = prog.required === 0 ? 0 : (prog.made / prog.required) * 100;
+
+                    return `
+                    <div onclick="openTerritory('${t.id}')" class="${statusColor} border rounded-3xl p-6 cursor-pointer hover:shadow-2xl transition relative overflow-hidden group flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="font-extrabold text-2xl">${t.name}</h3>
+                                <i class="fa-solid ${icon} text-3xl"></i>
+                            </div>
+                            <p class="text-sm font-bold mb-3 ${statusTextColor}">${displayStatus}</p>
+                            <div class="w-full bg-[#3a3a3a] rounded-full h-3 mb-2">
+                                <div class="${progressFillColor} h-3 rounded-full" style="width: ${percentage}%"></div>
+                            </div>
+                            <p class="text-xs text-[#b3b3b3] text-right font-medium">${progressText}</p>
+                        </div>
+                        <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition flex items-center justify-center">
+                            <span class="opacity-0 group-hover:opacity-100 bg-[#f5c66d] text-[#1e1e1e] px-4 py-1.5 rounded-full shadow-lg text-sm font-extrabold transition">Abrir</span>
+                        </div>
+                    </div>
+                    `;
+                }).join('');
+            }
+
+            let statsHtml = '';
+            if (Object.keys(statsByMonth).length === 0) {
+                statsHtml = '<p class="text-[#b3b3b3] col-span-full py-4 px-2 text-center bg-[#1e1e1e] rounded-xl">Aún no hay registros de territorios completados.</p>';
+            } else {
+                statsHtml = Object.entries(statsByMonth).map(([month, count]) => `
+                    <div class="bg-[#1e1e1e] border border-[#3a3a3a] rounded-2xl p-6 text-center shadow-inner">
+                        <p class="text-[#b3b3b3] text-sm font-bold mb-2 capitalize">${month}</p>
+                        <p class="text-5xl font-extrabold text-[#add8e6]">${count}</p>
+                    </div>
+                `).join('');
+            }
+
+            const isNorte = loggedInAppUser?.username?.toLowerCase() === 'norte';
+            const greetingTitle = isNorte ? 'Territorios asignados a la congregación' : `Hola ${loggedInAppUser.username}!`;
+            const statsTitle = isNorte ? 'Estadísticas' : 'Mis estadísticas';
+            const territoriesTitle = isNorte ? 'Territorios' : 'Mis Territorios';
+
+            container.innerHTML = `
+                <div class="space-y-8">
+                    <div class="px-2 pt-2">
+                        <h1 class="text-3xl font-extrabold text-[#ffffff]">${greetingTitle}</h1>
+                    </div>
+
+                    <div class="bg-[#2a2a2a] p-8 rounded-3xl shadow-lg border border-[#3a3a3a]">
+                        <h2 class="text-3xl font-extrabold mb-8 text-[#ffffff]"><i class="fa-solid fa-clipboard-list text-[#f5c66d]"></i> ${territoriesTitle}</h2>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                            ${cardsHtml}
+                        </div>
+                    </div>
+
+                    <div class="bg-[#2a2a2a] p-8 rounded-3xl shadow-lg border border-[#3a3a3a]">
+                        <h3 class="text-2xl font-extrabold mb-6 text-[#ffffff]"><i class="fa-solid fa-chart-pie text-[#add8e6]"></i> ${statsTitle}</h3>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-6">
+                            ${statsHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+        };
+
+        const renderTerritoryView = (tId) => {
+            const territory = allTerritories.find(t => t.id === tId);
+            if (!territory) { currentViewTerritoryId = null; renderApp(); return; }
+
+            const isNorte = loggedInAppUser && loggedInAppUser?.username?.toLowerCase() === 'norte';
+            
+            let theadHtml = '';
+            let rowsHtml = '';
+            let tableClass = 'min-w-full text-left text-sm';
+
+            if (isNorte) {
+                // --- MODO EXCEL (Solo para Norte) ---
+                tableClass += ' border-collapse border border-[#3a3a3a]';
+                
+                theadHtml = `
+                <tr class="bg-[#2a2a2a]">
+                    <th class="border border-[#4a4a4a] py-2 px-3 text-[#b3b3b3] font-semibold w-1/4">Teléfono</th>
+                    <th class="border border-[#4a4a4a] py-2 px-3 text-[#b3b3b3] font-semibold w-[35%]">Asignado a</th>
+                    <th class="border border-[#4a4a4a] py-2 px-3 text-[#b3b3b3] font-semibold w-[20%]">Fecha</th>
+                    <th class="border border-[#4a4a4a] py-2 px-3 text-[#b3b3b3] font-semibold w-[20%]">Resultado</th>
+                </tr>`;
+
+                rowsHtml = (territory.numbers || []).map((num, idx) => {
+                    const optHtml1 = OpcionesLlamada.map(opt => `<option value="${opt}" ${num.result === opt ? 'selected' : ''} class="text-[#ffffff] bg-[#2a2a2a]">${opt}</option>`).join('');
+                    const isCalled = num.result && num.result !== "-";
+                    
+                    return `
+                    <tr class="bg-[#1e1e1e] hover:bg-[#252525]">
+                        <td class="excel-td border border-[#4a4a4a] p-2 font-bold text-xs text-[#ffffff] whitespace-nowrap select-none transition-colors" data-row="${idx}" data-col="0" onmousedown="startExcelDrag(${idx}, 0)" onmouseenter="enterExcelDrag(${idx}, 0)">
+                            <div class="flex items-center gap-2">
+                                <span>${num.phone}</span>
+                                <button onclick="copyPhone('${num.phone}', this)" class="text-[#b3b3b3] hover:text-[#ffffff] p-1 rounded ml-1" title="Copiar número">
+                                    <i class="fa-regular fa-copy"></i>
+                                </button>
+                                <input type="hidden" class="excel-cell" data-row="${idx}" data-col="0" value="${num.phone}">
+                            </div>
+                        </td>
+                        <td class="excel-td border border-[#4a4a4a] p-0 relative transition-colors" data-row="${idx}" data-col="1" onmousedown="startExcelDrag(${idx}, 1)" onmouseenter="enterExcelDrag(${idx}, 1)">
+                            <input type="text" data-row="${idx}" data-col="1" value="${num.customAssignee || ''}" onchange="handleAssigneeChange('${territory.id}', ${idx}, this.value)" onpaste="handleExcelPaste(event, ${idx}, 1)" class="excel-cell w-full h-full min-h-[36px] bg-transparent px-2 py-1 outline-none focus:bg-[#3a3a3a] text-[#ffffff] text-xs cursor-cell transition-colors" autocomplete="off" spellcheck="false">
+                        </td>
+                        <td class="excel-td border border-[#4a4a4a] p-0 relative transition-colors" data-row="${idx}" data-col="2" onmousedown="startExcelDrag(${idx}, 2)" onmouseenter="enterExcelDrag(${idx}, 2)">
+                            <input type="date" id="date-${territory.id}-${idx}" data-row="${idx}" data-col="2" value="${num.date || ''}" onchange="updateNumberField('${territory.id}', ${idx}, 'date', this.value)" onpaste="handleExcelPaste(event, ${idx}, 2)" class="excel-cell w-full h-full min-h-[36px] bg-transparent px-2 py-1 outline-none focus:bg-[#3a3a3a] text-[#ffffff] text-xs cursor-cell transition-colors">
+                        </td>
+                        <td class="excel-td border border-[#4a4a4a] p-0 relative transition-colors" data-row="${idx}" data-col="3" onmousedown="startExcelDrag(${idx}, 3)" onmouseenter="enterExcelDrag(${idx}, 3)">
+                            <select data-row="${idx}" data-col="3" onchange="updateResult('${territory.id}', ${idx}, 'result', this.value)" onpaste="handleExcelPaste(event, ${idx}, 3)" class="excel-cell w-full h-full min-h-[36px] bg-transparent px-2 py-1 outline-none focus:bg-[#3a3a3a] text-[#ffffff] text-xs cursor-cell appearance-none transition-colors">
+                                ${optHtml1}
+                            </select>
+                        </td>
+                    </tr>
+                    `;
+                }).join('');
+
+            } else {
+                // --- MODO PUBLICADOR NORMAL ---
+                theadHtml = `
+                <tr>
+                    <th class="py-2 px-3 w-[40%] text-[#b3b3b3] rounded-l-lg">Teléfono</th>
+                    <th class="py-2 px-1 sm:px-3 w-[30%] text-[#b3b3b3]">1ra Vuelta</th>
+                    <th class="py-2 px-1 sm:px-3 w-[30%] text-[#b3b3b3] rounded-r-lg">2da Vuelta</th>
+                </tr>`;
+
+                rowsHtml = (territory.numbers || []).map((num, idx) => {
+                    const labelText1 = num.result || '-';
+                    const labelColor1 = labelText1 === '-' ? 'text-[#b3b3b3]' : 'text-[#ffffff]';
+                    const labelText2 = num.result2 || '-';
+                    const labelColor2 = labelText2 === '-' ? 'text-[#b3b3b3]' : 'text-[#ffffff]';
+                    const isCalled = num.result && num.result !== "-";
+
+                    return `
+                    <tr class="hover:bg-[#2a2a2a] transition-colors ${isCalled ? 'bg-[#1e1e1e] opacity-70' : ''} rounded-lg">
+                        <td class="py-2 px-3 font-bold text-base text-[#ffffff] rounded-l-lg tracking-wider whitespace-nowrap">
+                            <div class="flex items-center gap-2">
+                                <span>${num.phone}</span>
+                                <button onclick="copyPhone('${num.phone}', this)" class="text-[#b3b3b3] hover:text-[#ffffff] p-1 rounded ml-1" title="Copiar número">
+                                    <i class="fa-regular fa-copy"></i>
+                                </button>
+                            </div>
+                        </td>
+                        <td class="py-2 px-1 sm:px-3">
+                            <button onclick="openResultSheet('${territory.id}', ${idx}, 'result', '1ra Vuelta')" class="w-full min-w-[100px] border border-[#3a3a3a] rounded-lg py-2 px-2 bg-[#2a2a2a] text-left flex justify-between items-center focus:ring-1 focus:ring-[#f5c66d] outline-none text-[11px] sm:text-xs cursor-pointer shadow-sm hover:bg-[#3a3a3a] transition">
+                                <span class="truncate pr-1 ${labelColor1}">${labelText1}</span>
+                                <i class="fa-solid fa-chevron-down text-[#b3b3b3] text-[10px]"></i>
+                            </button>
+                        </td>
+                        <td class="py-2 px-1 sm:px-3 rounded-r-lg">
+                            <button onclick="openResultSheet('${territory.id}', ${idx}, 'result2', '2da Vuelta')" class="w-full min-w-[100px] border border-[#3a3a3a] rounded-lg py-2 px-2 bg-[#2a2a2a] text-left flex justify-between items-center focus:ring-1 focus:ring-[#f5c66d] outline-none text-[11px] sm:text-xs cursor-pointer shadow-sm hover:bg-[#3a3a3a] transition">
+                                <span class="truncate pr-1 ${labelColor2}">${labelText2}</span>
+                                <i class="fa-solid fa-chevron-down text-[#b3b3b3] text-[10px]"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    `;
+                }).join('');
+            }
+
+            let displayStatus = (territory.status === 'Ronda 1' || territory.status === 'Ronda 2') ? 'En curso' : territory.status;
+
+            container.innerHTML = `
+                <div class="bg-[#121212] rounded-3xl shadow-xl overflow-hidden flex flex-col h-[85vh] border border-[#2a2a2a]">
+                    <div class="bg-[#1e1e1e] p-6 border-b border-[#2a2a2a] flex justify-between items-center">
+                        <div>
+                            <button onclick="closeTerritory()" class="text-[#f5c66d] hover:text-[#ffdf91] mr-4 text-sm font-bold">
+                                <i class="fa-solid fa-arrow-left"></i> Volver
+                            </button>
+                            <span class="font-extrabold text-2xl md:text-3xl text-[#ffffff]">${territory.name}</span>
+                        </div>
+                        <span class="bg-[#2a2a2a] text-[#ffffff] px-4 py-1.5 rounded-full text-xs font-bold border border-[#3a3a3a]">
+                            ${displayStatus}
+                        </span>
+                    </div>
+
+                    <div id="numbers-scroll-container" class="flex-1 overflow-y-auto ${isNorte ? 'p-0' : 'p-2'}">
+                        <table class="${tableClass}">
+                            <thead class="bg-[#1e1e1e] sticky top-0 shadow-lg z-10">
+                                ${theadHtml}
+                            </thead>
+                            <tbody class="divide-y divide-[#2a2a2a]">
+                                ${rowsHtml}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    ${displayStatus === 'Completado' ? `
+                        <div class="bg-[#cde7ac] p-4 md:p-6 text-center text-[#1e1e1e] font-extrabold border-t border-[#cde7ac] flex items-center justify-center gap-3">
+                            <i class="fa-solid fa-check-double text-xl md:text-2xl"></i> ¡Territorio completado en su totalidad!
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        };
+
+        // ---- LÓGICA DE SELECCIÓN MÚLTIPLE EXCEL (NORTE) ----
+        window.startExcelDrag = (r, c) => {
+            excelSel.isDragging = true;
+            excelSel.startR = r;
+            excelSel.startC = c;
+            excelSel.endR = r;
+            excelSel.endC = c;
+            updateExcelSelectionUI();
+        };
+
+        window.enterExcelDrag = (r, c) => {
+            if (excelSel.isDragging) {
+                excelSel.endR = r;
+                excelSel.endC = c;
+                updateExcelSelectionUI();
+            }
+        };
+
+        window.updateExcelSelectionUI = () => {
+            const minR = Math.min(excelSel.startR, excelSel.endR);
+            const maxR = Math.max(excelSel.startR, excelSel.endR);
+            const minC = Math.min(excelSel.startC, excelSel.endC);
+            const maxC = Math.max(excelSel.startC, excelSel.endC);
+
+            document.querySelectorAll('.excel-td').forEach(td => {
+                const r = parseInt(td.dataset.row);
+                const c = parseInt(td.dataset.col);
+                if (r >= minR && r <= maxR && c >= minC && c <= maxC) {
+                    td.classList.add('bg-[#1a4066]', 'excel-selected'); 
+                } else {
+                    td.classList.remove('bg-[#1a4066]', 'excel-selected');
+                }
+            });
+        };
+
+        document.addEventListener('mouseup', () => {
+            if (excelSel.isDragging) excelSel.isDragging = false;
+        });
+
+        document.addEventListener('keydown', (e) => {
+            const isNorte = loggedInAppUser?.username?.toLowerCase() === 'norte';
+            if (!isNorte || !currentViewTerritoryId) return;
+
+            if (e.ctrlKey && e.key === 'c') {
+                const minR = Math.min(excelSel.startR, excelSel.endR);
+                const maxR = Math.max(excelSel.startR, excelSel.endR);
+                const minC = Math.min(excelSel.startC, excelSel.endC);
+                const maxC = Math.max(excelSel.startC, excelSel.endC);
+
+                if (minR === -1) return;
+
+                let tsv = '';
+                for (let r = minR; r <= maxR; r++) {
+                    let rowData = [];
+                    for (let c = minC; c <= maxC; c++) {
+                        const el = document.querySelector(`.excel-cell[data-row="${r}"][data-col="${c}"]`);
+                        rowData.push(el ? el.value : '');
+                    }
+                    tsv += rowData.join('\t') + (r === maxR ? '' : '\n');
+                }
+                
+                if (tsv !== '') {
+                    navigator.clipboard.writeText(tsv).then(() => {
+                        document.querySelectorAll('.excel-selected').forEach(td => {
+                            td.classList.add('opacity-50');
+                            setTimeout(() => td.classList.remove('opacity-50'), 150);
+                        });
+                    });
+                }
+            }
+        });
+
+        window.handleExcelPaste = async (e, startRow, startCol) => {
+            const pasteData = (e.clipboardData || window.clipboardData).getData('text');
+            if (pasteData && (pasteData.includes('\t') || pasteData.includes('\n'))) {
+                e.preventDefault(); 
+                
+                const territory = allTerritories.find(t => t.id === currentViewTerritoryId);
+                if (!territory || !territory.numbers) return;
+
+                const rows = pasteData.split(/\r?\n/);
+                if (rows[rows.length - 1] === "") rows.pop(); 
+
+                const now = new Date();
+                const localToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                let updated = false;
+
+                for (let i = 0; i < rows.length; i++) {
+                    const cols = rows[i].split('\t');
+                    const targetR = startRow + i;
+                    if (targetR >= territory.numbers.length) break;
+
+                    for (let j = 0; j < cols.length; j++) {
+                        const targetC = startCol + j;
+                        const val = cols[j].trim();
+
+                        if (targetC === 1) { 
+                            territory.numbers[targetR].customAssignee = val;
+                            if (val !== '' && !territory.numbers[targetR].date) territory.numbers[targetR].date = localToday;
+                            updated = true;
+                        } else if (targetC === 2) { 
+                            territory.numbers[targetR].date = val;
+                            updated = true;
+                        } else if (targetC === 3) { 
+                            const matchedOpt = OpcionesLlamada.find(o => o.toLowerCase() === val.toLowerCase());
+                            territory.numbers[targetR].result = matchedOpt ? matchedOpt : val;
+                            updated = true;
+                        }
+                    }
+                }
+
+                if (updated) {
+                    try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'territories', currentViewTerritoryId), { numbers: territory.numbers }); } 
+                    catch (err) { console.error(err); }
+                }
+            }
+        };
+
+        window.handleAssigneeChange = async (tId, numIndex, value) => {
+            const territory = allTerritories.find(t => t.id === tId);
+            if (!territory || !territory.numbers) return;
+            
+            territory.numbers[numIndex].customAssignee = value;
+            
+            if (value.trim() !== '' && !territory.numbers[numIndex].date) {
+                const now = new Date();
+                const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                territory.numbers[numIndex].date = today;
+                const dateInput = document.getElementById(`date-${tId}-${numIndex}`);
+                if(dateInput) dateInput.value = today;
+            }
+            
+            try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'territories', tId), { numbers: territory.numbers }); } 
+            catch (err) { console.error(err); }
+        };
+
+        // ---- LÓGICA DEL BOTTOM SHEET ----
+        window.closeBottomSheet = () => {
+            const overlay = document.getElementById('bottom-sheet-overlay');
+            const sheet = document.getElementById('bottom-sheet');
+            if(overlay) {
+                overlay.classList.remove('opacity-100', 'pointer-events-auto');
+                overlay.classList.add('opacity-0', 'pointer-events-none');
+            }
+            if(sheet) {
+                sheet.classList.remove('translate-y-0');
+                sheet.classList.add('translate-y-full');
+            }
+        };
+
+        const showBottomSheet = () => {
+            const overlay = document.getElementById('bottom-sheet-overlay');
+            const sheet = document.getElementById('bottom-sheet');
+            if(overlay) {
+                overlay.classList.remove('opacity-0', 'pointer-events-none');
+                overlay.classList.add('opacity-100', 'pointer-events-auto');
+            }
+            if(sheet) {
+                sheet.classList.remove('translate-y-full');
+                sheet.classList.add('translate-y-0');
+            }
+        };
+
+        window.openAssignSheet = (tId) => {
+            const territory = allTerritories.find(t => t.id === tId);
+            document.getElementById('bottom-sheet-title').innerText = `Asignar Territorio ${territory.name}`;
+            
+            let content = `
+                <button onclick="closeAndAssign('${tId}', '')" class="w-full text-left p-4 border-b border-[#2a2a2a] text-[#b3b3b3] hover:bg-[#2a2a2a] transition flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-[#3a3a3a] flex items-center justify-center"><i class="fa-solid fa-user-xmark"></i></div>
+                    - (Dejar libre)
+                </button>`;
+            
+            allUsers.filter(u => u.role !== 'admin' && u.username).forEach(u => {
+                const isSelected = territory.assignedTo === u.id;
+                const textColor = isSelected ? 'text-[#f5c66d]' : 'text-[#ffffff]';
+                const bgClass = isSelected ? 'bg-[#2a2a2a]' : 'hover:bg-[#2a2a2a]';
+                
+                content += `
+                <button onclick="closeAndAssign('${tId}', '${u.id}')" class="w-full text-left p-4 border-b border-[#2a2a2a] ${bgClass} transition flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-[#3a3a3a] flex items-center justify-center text-[#add8e6]"><i class="fa-solid fa-user"></i></div>
+                        <span class="${textColor} font-bold">${u.username}</span>
+                    </div>
+                    ${isSelected ? '<i class="fa-solid fa-check text-[#f5c66d] text-lg"></i>' : ''}
+                </button>`;
+            });
+            
+            document.getElementById('bottom-sheet-content').innerHTML = content;
+            showBottomSheet();
+        };
+
+        window.closeAndAssign = (tId, userId) => {
+            closeBottomSheet();
+            assignTerritory(tId, userId);
+        };
+
+        window.openResultSheet = (tId, numIndex, field, titleLabel) => {
+            const territory = allTerritories.find(t => t.id === tId);
+            const currentVal = territory.numbers[numIndex][field] || '-';
+            
+            document.getElementById('bottom-sheet-title').innerText = `Seleccionar ${titleLabel}`;
+            
+            let content = '';
+            OpcionesLlamada.forEach(opt => {
+                const isSelected = currentVal === opt;
+                const isDash = opt === '-';
+                const textColor = isSelected ? 'text-[#f5c66d]' : (isDash ? 'text-[#b3b3b3]' : 'text-[#ffffff]');
+                const bgClass = isSelected ? 'bg-[#2a2a2a]' : 'hover:bg-[#2a2a2a]';
+                
+                content += `
+                <button onclick="closeAndUpdateResult('${tId}', ${numIndex}, '${field}', '${opt}')" class="w-full text-left p-4 border-b border-[#2a2a2a] ${bgClass} transition flex justify-between items-center text-sm md:text-base">
+                    <span class="${textColor} ${isSelected ? 'font-bold' : ''}">${opt}</span>
+                    ${isSelected ? '<i class="fa-solid fa-check text-[#f5c66d] text-lg"></i>' : ''}
+                </button>`;
+            });
+            
+            document.getElementById('bottom-sheet-content').innerHTML = content;
+            showBottomSheet();
+        };
+
+        window.closeAndUpdateResult = (tId, numIndex, field, newResult) => {
+            closeBottomSheet();
+            updateResult(tId, numIndex, field, newResult);
+        };
+
+        // ---- ACCIONES SECUNDARIAS ----
+        window.toggleSortActive = () => { sortActiveFirst = !sortActiveFirst; renderApp(); };
+
+        window.toggleUserAccordion = () => {
+            isUserAccordionOpen = !isUserAccordionOpen;
+            const content = document.getElementById('user-form-container');
+            const chevron = document.getElementById('user-chevron');
+            if (isUserAccordionOpen) {
+                content.classList.remove('hidden');
+                chevron.classList.replace('fa-chevron-down', 'fa-chevron-up');
+            } else {
+                content.classList.add('hidden');
+                chevron.classList.replace('fa-chevron-up', 'fa-chevron-down');
+            }
+        };
+
+        window.togglePublishersAccordion = () => {
+            isPublishersAccordionOpen = !isPublishersAccordionOpen;
+            const content = document.getElementById('publishers-container');
+            const chevron = document.getElementById('publishers-chevron');
+            if (isPublishersAccordionOpen) {
+                content.classList.remove('hidden');
+                chevron.classList.replace('fa-chevron-down', 'fa-chevron-up');
+            } else {
+                content.classList.add('hidden');
+                chevron.classList.replace('fa-chevron-up', 'fa-chevron-down');
+            }
+        };
+
+        window.copyPhone = (phone, btnElement) => {
+            const el = document.createElement('textarea');
+            el.value = phone;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            
+            if (btnElement) {
+                const icon = btnElement.querySelector('i');
+                icon.className = 'fa-solid fa-check text-[#cde7ac]';
+                setTimeout(() => { icon.className = 'fa-regular fa-copy'; }, 1500);
+            }
+        };
+
+        window.logout = () => { 
+            loggedInAppUser = null; 
+            currentViewTerritoryId = null; 
+            try { localStorage.removeItem('savedSessionId'); } catch(e){}
+            renderApp(); 
+        };
+        window.openTerritory = (id) => { currentViewTerritoryId = id; renderApp(); };
+        window.closeTerritory = () => { currentViewTerritoryId = null; renderApp(); };
+
+        window.unassignTerritory = (tId, tName) => {
+            if(confirm(`¿Seguro que deseas quitarle el Territorio ${tName} al publicador asignado? Volverá a estar libre, pendiente y su progreso regresará a cero.`)) {
+                assignTerritory(tId, "");
+            }
+        };
+
+        window.assignTerritory = async (tId, userId) => {
+            try {
+                const tRef = doc(db, 'artifacts', appId, 'public', 'data', 'territories', tId);
+                const territory = allTerritories.find(t => t.id === tId);
+                let newStatus = territory.status;
+                let updateData = { assignedTo: userId || null };
+                
+                if (userId && newStatus === 'Pendiente') newStatus = 'En curso';
+                
+                if (!userId) { 
+                    newStatus = 'Pendiente'; 
+                    updateData.assignedDate = null; 
+                    updateData.completedDate = null; 
+                    updateData.numbers = (territory.numbers || []).map(n => ({
+                        ...n,
+                        result: "-",
+                        result2: "-",
+                        checked1: false,
+                        checked2: false
+                    }));
+                }
+                
+                if (userId && territory.assignedTo !== userId) { 
+                    updateData.assignedDate = new Date().toISOString(); 
+                    updateData.completedDate = null; 
+                }
+
+                updateData.status = newStatus;
+                await updateDoc(tRef, updateData);
+            } catch (err) { console.error("Error asignando:", err); }
+        };
+
+        window.updateResult = async (tId, numIndex, field, newResult) => {
+            const territory = allTerritories.find(t => t.id === tId);
+            if (!territory || !territory.numbers) return;
+            
+            territory.numbers[numIndex][field] = newResult;
+
+            const assignedUser = allUsers.find(u => u.id === territory.assignedTo);
+            const isNorteAssignee = assignedUser && assignedUser?.username?.toLowerCase() === 'norte';
+
+            const prog = getProgress(territory, isNorteAssignee);
+            const isComplete = (prog.made === prog.required && prog.required > 0);
+
+            let newStatus = territory.assignedTo ? 'En curso' : 'Pendiente';
+            let completedDate = territory.completedDate || null;
+
+            if (isComplete) {
+                newStatus = 'Completado';
+                if (territory.status !== 'Completado') completedDate = new Date().toISOString();
+            } else {
+                if (territory.status === 'Completado') completedDate = null;
+            }
+
+            try { 
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'territories', tId), { 
+                    numbers: territory.numbers,
+                    status: newStatus,
+                    completedDate: completedDate
+                }); 
+            } 
+            catch (err) { console.error(err); }
+        };
+
+        window.updateNumberField = async (tId, numIndex, field, value) => {
+            const territory = allTerritories.find(t => t.id === tId);
+            if (!territory || !territory.numbers) return;
+            territory.numbers[numIndex][field] = value;
+            try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'territories', tId), { numbers: territory.numbers }); } 
+            catch (err) { console.error(err); }
+        };
+
+        // ---- INICIALIZACIÓN Y SUSCRIPCIONES A FIREBASE ----
+        const initDataListeners = () => {
+            const usersRef = collection(db, 'artifacts', appId, 'public', 'data', 'users');
+            onSnapshot(usersRef, (snapshot) => {
+                const users = [];
+                snapshot.forEach(doc => users.push({ id: doc.id, ...doc.data() }));
+                
+                if (users.length === 0) { 
+                    addDoc(usersRef, { username: 'admin', password: 'admin', role: 'admin' }); 
+                } else if (!users.find(u => u?.username?.toLowerCase() === 'norte')) {
+                    addDoc(usersRef, { username: 'Norte', password: 'norte', role: 'user' });
+                }
+                
+                allUsers = users;
+                
+                if (!loggedInAppUser) {
+                    try { 
+                        const savedId = localStorage.getItem('savedSessionId'); 
+                        if (savedId) {
+                            const found = allUsers.find(u => u.id === savedId);
+                            if (found) loggedInAppUser = found;
+                        }
+                    } catch(e) {}
+                } else {
+                    const updatedMe = allUsers.find(u => u.id === loggedInAppUser.id);
+                    loggedInAppUser = updatedMe || null;
+                }
+                
+                renderApp();
+            }, (error) => console.error("Error cargando usuarios:", error));
+
+            const terrRef = collection(db, 'artifacts', appId, 'public', 'data', 'territories');
+            onSnapshot(terrRef, (snapshot) => {
+                const terrs = [];
+                snapshot.forEach(doc => terrs.push({ id: doc.id, ...doc.data() }));
+                allTerritories = terrs;
+                
+                renderApp();
+            }, (error) => console.error("Error cargando territorios:", error));
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            firebaseUser = user;
+            if (user) { 
+                if (!window.dataListenersInitialized) {
+                    window.dataListenersInitialized = true;
+                    initDataListeners(); 
+                }
+                renderApp(); // ¡Dibuja la pantalla de login de inmediato sin esperar a la BD!
+            }
+        });
+
+        initAuth();
+
+    </script>
+</body>
+</html>
