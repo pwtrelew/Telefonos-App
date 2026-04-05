@@ -152,21 +152,29 @@
         ];
 
         const getProgress = (territory, isNorteAssignee) => {
-            let totalRequired = 0;
-            let totalMade = 0;
+            let totalNumbers = 0;
+            let completedNumbers = 0;
+            let requiredActions = 0;
+            let madeActions = 0;
 
             (territory.numbers || []).forEach(n => {
-                totalRequired++; 
-                if (n.result && n.result !== "-") totalMade++;
+                totalNumbers++;
+                requiredActions++; 
+                let r1 = n.result && n.result !== "-";
+                if (r1) madeActions++;
 
                 if (!isNorteAssignee) {
-                    totalRequired++; 
-                    if (n.result2 && n.result2 !== "-") {
-                        totalMade++;
-                    }
+                    requiredActions++; 
+                    let r2 = n.result2 && n.result2 !== "-";
+                    if (r2) madeActions++;
+                    
+                    if (r1 && r2) completedNumbers++;
+                } else {
+                    if (r1) completedNumbers++;
                 }
             });
-            return { required: totalRequired, made: totalMade };
+            
+            return { totalNumbers, completedNumbers, requiredActions, madeActions };
         };
 
         const initAuth = async () => {
@@ -330,11 +338,11 @@
                     const prog = getProgress(t, isNorteAssignee);
                     
                     let progressHtml = '';
-                    if (t.status === 'Completado' || (prog.made === prog.required && prog.required > 0)) {
+                    if (t.status === 'Completado' || (prog.madeActions === prog.requiredActions && prog.requiredActions > 0)) {
                         progressHtml = `<div class="text-[#cde7ac] font-bold text-sm"><i class="fa-solid fa-check-double"></i> ¡Finalizado!</div>`;
                     } else {
-                        let percentage = prog.required === 0 ? 0 : (prog.made / prog.required) * 100;
-                        let text = `${prog.made} de ${prog.required}`;
+                        let percentage = prog.requiredActions === 0 ? 0 : (prog.madeActions / prog.requiredActions) * 100;
+                        let text = `${prog.completedNumbers} de ${prog.totalNumbers} núm.`;
                         progressHtml = `
                             <div class="w-full bg-[#1e1e1e] rounded-full h-3 relative overflow-hidden">
                                 <div class="bg-[#f5c66d] h-3 rounded-full transition-all duration-500" style="width: ${percentage}%"></div>
@@ -533,7 +541,7 @@
                     const isNorteAssignee = loggedInAppUser?.username?.toLowerCase() === 'norte';
                     const prog = getProgress(t, isNorteAssignee);
 
-                    if (displayStatus === 'Completado' || (prog.made === prog.required && prog.required > 0)) { 
+                    if (displayStatus === 'Completado' || (prog.madeActions === prog.requiredActions && prog.requiredActions > 0)) { 
                         statusColor = 'bg-[#1e1e1e] border-[#cde7ac] text-[#ffffff]'; 
                         icon = 'fa-check-circle text-[#cde7ac]'; 
                         statusTextColor = 'text-[#cde7ac]';
@@ -546,8 +554,8 @@
                         displayStatus = 'En curso';
                     }
 
-                    let progressText = `${prog.made}/${prog.required}`;
-                    let percentage = prog.required === 0 ? 0 : (prog.made / prog.required) * 100;
+                    let progressText = `${prog.completedNumbers}/${prog.totalNumbers} núm.`;
+                    let percentage = prog.requiredActions === 0 ? 0 : (prog.madeActions / prog.requiredActions) * 100;
 
                     return `
                     <div onclick="openTerritory('${t.id}')" class="${statusColor} border rounded-3xl p-6 cursor-pointer hover:shadow-2xl transition relative overflow-hidden group flex flex-col justify-between">
@@ -1065,7 +1073,7 @@
             const isNorteAssignee = assignedUser && assignedUser?.username?.toLowerCase() === 'norte';
 
             const prog = getProgress(territory, isNorteAssignee);
-            const isComplete = (prog.made === prog.required && prog.required > 0);
+            const isComplete = (prog.madeActions === prog.requiredActions && prog.requiredActions > 0);
 
             let newStatus = territory.assignedTo ? 'En curso' : 'Pendiente';
             let completedDate = territory.completedDate || null;
