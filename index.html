@@ -686,8 +686,8 @@
                 
                 theadHtml = `
                 <tr class="bg-[#2a2a2a]">
-                    <th class="border border-[#4a4a4a] py-1 px-2 text-[#b3b3b3] font-semibold w-[15%]">Teléfono</th>
-                    <th class="border border-[#4a4a4a] py-1 px-2 text-[#b3b3b3] font-semibold w-[25%]">Asignado a</th>
+                    <th class="border border-[#4a4a4a] py-1 px-1 text-[#b3b3b3] font-semibold text-center w-[80px] min-w-[80px] max-w-[80px] overflow-hidden">Teléfono</th>
+                    <th class="border border-[#4a4a4a] py-1 px-1 text-[#b3b3b3] font-semibold text-center w-[90px] min-w-[90px] max-w-[90px] overflow-hidden">Asignado a</th>
                     <th class="border border-[#4a4a4a] py-1 px-2 text-[#b3b3b3] font-semibold w-[20%]">Fecha</th>
                     <th class="border border-[#4a4a4a] py-1 px-2 text-[#b3b3b3] font-semibold w-[40%]">Resultado</th>
                 </tr>`;
@@ -698,14 +698,14 @@
                     
                     return `
                     <tr class="bg-[#1e1e1e] hover:bg-[#252525]">
-                        <td class="excel-td border border-[#4a4a4a] p-1 font-bold text-xs text-[#ffffff] whitespace-nowrap select-none transition-colors" data-row="${idx}" data-col="0" onmousedown="startExcelDrag(${idx}, 0)" onmouseenter="enterExcelDrag(${idx}, 0)">
-                            <div class="flex items-center">
-                                <span>${num.phone}</span>
+                        <td class="excel-td border border-[#4a4a4a] py-1 px-1 font-bold text-[11px] sm:text-xs text-[#ffffff] whitespace-nowrap select-none transition-colors w-[80px] min-w-[80px] max-w-[80px] text-center overflow-hidden" data-row="${idx}" data-col="0" onmousedown="startExcelDrag(${idx}, 0)" onmouseenter="enterExcelDrag(${idx}, 0)">
+                            <div class="flex items-center justify-center">
+                                <span class="truncate">${num.phone}</span>
                                 <input type="hidden" class="excel-cell" data-row="${idx}" data-col="0" value="${num.phone}">
                             </div>
                         </td>
-                        <td class="excel-td border border-[#4a4a4a] p-0 relative transition-colors" data-row="${idx}" data-col="1" onmousedown="startExcelDrag(${idx}, 1)" onmouseenter="enterExcelDrag(${idx}, 1)">
-                            <input type="text" data-row="${idx}" data-col="1" value="${num.customAssignee || ''}" onchange="handleAssigneeChange('${territory.id}', ${idx}, this.value)" onpaste="handleExcelPaste(event, ${idx}, 1)" class="excel-cell w-full h-full min-h-[30px] bg-transparent px-1 py-0 outline-none focus:bg-[#3a3a3a] text-[#ffffff] text-xs cursor-cell transition-colors" autocomplete="off" spellcheck="false">
+                        <td class="excel-td border border-[#4a4a4a] p-0 relative transition-colors w-[90px] min-w-[90px] max-w-[90px]" data-row="${idx}" data-col="1" onmousedown="startExcelDrag(${idx}, 1)" onmouseenter="enterExcelDrag(${idx}, 1)">
+                            <input type="text" data-row="${idx}" data-col="1" value="${num.customAssignee || ''}" onchange="handleAssigneeChange('${territory.id}', ${idx}, this.value)" onpaste="handleExcelPaste(event, ${idx}, 1)" class="excel-cell w-full h-full min-h-[30px] bg-transparent px-1 py-0 outline-none focus:bg-[#3a3a3a] text-[#ffffff] text-[11px] sm:text-xs text-center cursor-cell transition-colors overflow-hidden" autocomplete="off" spellcheck="false">
                         </td>
                         <td class="excel-td border border-[#4a4a4a] p-0 relative transition-colors" data-row="${idx}" data-col="2" onmousedown="startExcelDrag(${idx}, 2)" onmouseenter="enterExcelDrag(${idx}, 2)">
                             <input type="date" id="date-${territory.id}-${idx}" data-row="${idx}" data-col="2" value="${num.date || ''}" onchange="updateNumberField('${territory.id}', ${idx}, 'date', this.value)" onpaste="handleExcelPaste(event, ${idx}, 2)" class="excel-cell w-full h-full min-h-[30px] bg-transparent px-1 py-0 outline-none focus:bg-[#3a3a3a] text-[#ffffff] text-xs cursor-cell transition-colors">
@@ -1221,3 +1221,5 @@
     </script>
 </body>
 </html>
+
+
