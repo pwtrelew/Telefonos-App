@@ -54,12 +54,12 @@
     <script>
         const manifest = {
             name: "Teléfonos App",
-            short_name: "Territorios",
+            short_name: "Teléfonos App",
             start_url: ".",
             display: "standalone",
             background_color: "#1e1e1e",
             theme_color: "#121212",
-            icons: [{"src": "./icon.png", "sizes": "512x512", "type": "image/png"}]
+            icons: [{"src": "./icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}]
         };
         const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
         const manifestURL = URL.createObjectURL(blob);
@@ -194,9 +194,7 @@
             container.innerHTML = `
                 <div class="max-w-md mx-auto bg-[#2a2a2a] p-10 rounded-3xl shadow-2xl mt-16 flex flex-col items-center border border-[#3a3a3a]">
                     
-                    <!-- Imagen oficial con alternativa segura si no encuentra la imagen -->
-                    <img src="./icon.png" alt="Teléfonos App Logo" class="w-24 h-24 mb-6 rounded-2xl shadow-lg" id="app-logo" onerror="document.getElementById('app-logo').style.display='none'; document.getElementById('fallback-logo').classList.remove('hidden');">
-                    <i id="fallback-logo" class="fa-solid fa-phone text-6xl text-[#f5c66d] mb-6 hidden"></i>
+                    <i class="fa-solid fa-phone text-6xl text-[#f5c66d] mb-6"></i>
                     
                     <h2 class="text-3xl font-extrabold text-center mb-10 text-[#ffffff]">Teléfonos App</h2>
                     <form id="loginForm" class="space-y-6 w-full">
@@ -894,5 +892,3 @@
     </script>
 </body>
 </html>
-
-
