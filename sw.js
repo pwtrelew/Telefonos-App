@@ -1,4 +1,4 @@
-const CACHE_NAME = 'telefonos-app-v23';
+const CACHE_NAME = 'telefonos-app-v24';
 const urlsToCache = [
     './',
     './index.html'
