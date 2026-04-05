@@ -604,10 +604,10 @@
                 if (isNorte) {
                     colsHtml = `
                     <td class="py-2 px-3">
-                        <input type="date" value="${num.date || ''}" onchange="updateNumberField('${territory.id}', ${idx}, 'date', this.value)" class="w-full border border-[#3a3a3a] rounded-lg py-1 px-2 text-xs bg-[#1e1e1e] text-[#ffffff] focus:ring-1 focus:ring-[#f5c66d]">
+                        <input type="text" placeholder="Nombre..." value="${num.customAssignee || ''}" onchange="handleAssigneeChange('${territory.id}', ${idx}, this.value)" onpaste="handleAssigneePaste(event, '${territory.id}', ${idx})" title="Puedes pegar una lista de nombres aquí" class="w-full border border-[#3a3a3a] rounded-lg py-1 px-2 text-xs bg-[#1e1e1e] text-[#ffffff] focus:ring-1 focus:ring-[#f5c66d]">
                     </td>
                     <td class="py-2 px-3">
-                        <input type="text" placeholder="Nombre..." value="${num.customAssignee || ''}" onchange="updateNumberField('${territory.id}', ${idx}, 'customAssignee', this.value)" class="w-full border border-[#3a3a3a] rounded-lg py-1 px-2 text-xs bg-[#1e1e1e] text-[#ffffff] focus:ring-1 focus:ring-[#f5c66d]">
+                        <input type="date" id="date-${territory.id}-${idx}" value="${num.date || ''}" onchange="updateNumberField('${territory.id}', ${idx}, 'date', this.value)" class="w-full border border-[#3a3a3a] rounded-lg py-1 px-2 text-xs bg-[#1e1e1e] text-[#ffffff] focus:ring-1 focus:ring-[#f5c66d]">
                     </td>
                     <td class="py-2 px-3 rounded-r-lg">
                         <select onchange="updateResult('${territory.id}', ${idx}, 'result', this.value)" class="w-full min-w-[120px] border border-[#3a3a3a] rounded-lg py-1.5 px-2.5 bg-[#2a2a2a] text-[#ffffff] focus:ring-1 focus:ring-[#f5c66d] outline-none text-xs cursor-pointer">
@@ -660,8 +660,8 @@
                 theadHtml = `
                 <tr>
                     <th class="py-2 px-3 w-1/4 text-[#b3b3b3] rounded-l-lg">Teléfono</th>
+                    <th class="py-2 px-3 w-1/4 text-[#b3b3b3]">Asignado a</th>
                     <th class="py-2 px-3 w-1/4 text-[#b3b3b3]">Fecha</th>
-                    <th class="py-2 px-3 w-1/4 text-[#b3b3b3]">Asignado</th>
                     <th class="py-2 px-3 w-1/4 text-[#b3b3b3] rounded-r-lg">Resultado</th>
                 </tr>`;
             } else {
@@ -933,6 +933,58 @@
             territory.numbers[numIndex][field] = value;
             try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'territories', tId), { numbers: territory.numbers }); } 
             catch (err) { console.error(err); }
+        };
+
+        // Lógica especial para Norte: Auto-fecha y Pegado múltiple
+        window.handleAssigneeChange = async (tId, numIndex, value) => {
+            const territory = allTerritories.find(t => t.id === tId);
+            if (!territory) return;
+            
+            territory.numbers[numIndex].customAssignee = value;
+            
+            // Auto-fecha: Si hay nombre y no hay fecha, poner fecha de hoy
+            if (value.trim() !== '' && !territory.numbers[numIndex].date) {
+                const today = new Date().toISOString().split('T')[0];
+                territory.numbers[numIndex].date = today;
+                
+                const dateInput = document.getElementById(`date-${tId}-${numIndex}`);
+                if(dateInput) dateInput.value = today;
+            }
+            
+            try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'territories', tId), { numbers: territory.numbers }); } 
+            catch (err) { console.error(err); }
+        };
+
+        window.handleAssigneePaste = async (e, tId, startIndex) => {
+            const pasteData = (e.clipboardData || window.clipboardData).getData('text');
+            
+            // Si el texto pegado tiene saltos de línea (varios nombres a la vez)
+            if (pasteData.includes('\n')) {
+                e.preventDefault(); 
+                const names = pasteData.split(/[\r\n]+/).filter(n => n.trim() !== '');
+                const territory = allTerritories.find(t => t.id === tId);
+                if (!territory) return;
+                
+                const today = new Date().toISOString().split('T')[0];
+                let updated = false;
+
+                // Rellenar hacia abajo las siguientes celdas
+                for(let i = 0; i < names.length; i++) {
+                    const idx = startIndex + i;
+                    if (idx < territory.numbers.length) {
+                        territory.numbers[idx].customAssignee = names[i].trim();
+                        if (!territory.numbers[idx].date) {
+                            territory.numbers[idx].date = today;
+                        }
+                        updated = true;
+                    }
+                }
+                
+                if (updated) {
+                    try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'territories', tId), { numbers: territory.numbers }); } 
+                    catch (err) { console.error(err); }
+                }
+            }
         };
 
         // ---- INICIALIZACIÓN Y SUSCRIPCIONES A FIREBASE ----
