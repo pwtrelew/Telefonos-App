@@ -942,9 +942,11 @@
             
             territory.numbers[numIndex].customAssignee = value;
             
-            // Auto-fecha: Si hay nombre y no hay fecha, poner fecha de hoy
+            // Auto-fecha: Si hay nombre y no hay fecha, poner fecha local de hoy
             if (value.trim() !== '' && !territory.numbers[numIndex].date) {
-                const today = new Date().toISOString().split('T')[0];
+                const now = new Date();
+                const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                
                 territory.numbers[numIndex].date = today;
                 
                 const dateInput = document.getElementById(`date-${tId}-${numIndex}`);
@@ -965,7 +967,8 @@
                 const territory = allTerritories.find(t => t.id === tId);
                 if (!territory) return;
                 
-                const today = new Date().toISOString().split('T')[0];
+                const now = new Date();
+                const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
                 let updated = false;
 
                 // Rellenar hacia abajo las siguientes celdas
