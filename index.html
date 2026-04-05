@@ -177,6 +177,7 @@
         let isUserAccordionOpen = false;
         let isPublishersAccordionOpen = false;
         let excelSel = { startR: -1, startC: -1, endR: -1, endC: -1, isDragging: false };
+        let publisherSearchQuery = '';
 
         const OpcionesLlamada = [
             "-", 
@@ -417,7 +418,11 @@
                 }).join('');
             }
 
-            const publishersCardsHtml = allUsers.filter(u => u.role !== 'admin' && u.username).map(u => {
+            const sortedPublishers = allUsers
+                .filter(u => u.role !== 'admin' && u.username)
+                .sort((a, b) => a.username.localeCompare(b.username));
+
+            const publishersCardsHtml = sortedPublishers.map(u => {
                 const userTerrs = allTerritories.filter(t => t.assignedTo === u.id);
                 
                 const sortedUserTerrs = [...userTerrs].sort((a, b) => {
@@ -450,9 +455,11 @@
                 }).join('');
                 
                 const securityText = u.password ? `<p class="text-[10px] text-[#b3b3b3] font-mono"><i class="fa-solid fa-lock text-[#cde7ac] mr-1"></i> Protegido con contraseña</p>` : `<p class="text-[10px] text-[#b3b3b3] font-mono"><i class="fa-solid fa-bolt text-[#f5c66d] mr-1"></i> Acceso directo</p>`;
+                
+                const displayStyle = publisherSearchQuery && !u.username.toLowerCase().includes(publisherSearchQuery.toLowerCase()) ? 'display: none;' : '';
 
                 return `
-                <div class="bg-[#1e1e1e] p-5 rounded-2xl border border-[#3a3a3a]">
+                <div class="publisher-card bg-[#1e1e1e] p-5 rounded-2xl border border-[#3a3a3a]" data-name="${u.username.toLowerCase()}" style="${displayStyle}">
                     <div class="flex items-center gap-3 mb-4">
                         <div class="bg-[#2a2a2a] p-2.5 rounded-full"><i class="fa-solid fa-user text-[#add8e6]"></i></div>
                         <div class="truncate">
@@ -514,8 +521,14 @@
                             <i id="publishers-chevron" class="fa-solid ${pubChevron} text-[#b3b3b3] group-hover:text-[#ffffff] transition-colors text-lg"></i>
                         </div>
                         <div id="publishers-container" class="${pubHidden}">
-                            <div class="border-t border-[#3a3a3a] mt-6 pt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                ${publishersCardsHtml}
+                            <div class="border-t border-[#3a3a3a] mt-6 pt-6">
+                                <div class="mb-6 relative">
+                                    <i class="fa-solid fa-search absolute left-4 top-3.5 text-[#b3b3b3]"></i>
+                                    <input type="text" id="publisherSearch" value="${publisherSearchQuery}" oninput="filterPublishers(this.value)" placeholder="Buscar publicador..." class="w-full pl-11 pr-5 py-3 border border-[#3a3a3a] rounded-xl bg-[#1e1e1e] text-[#ffffff] placeholder-[#b3b3b3] focus:outline-none focus:ring-2 focus:ring-[#add8e6] transition-all" autocomplete="off">
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    ${publishersCardsHtml}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1013,6 +1026,15 @@
 
         // ---- ACCIONES SECUNDARIAS ----
         window.toggleSortActive = () => { sortActiveFirst = !sortActiveFirst; renderApp(); };
+
+        window.filterPublishers = (query) => {
+            publisherSearchQuery = query;
+            const lowerQuery = query.toLowerCase();
+            document.querySelectorAll('.publisher-card').forEach(card => {
+                const name = card.getAttribute('data-name');
+                card.style.display = name.includes(lowerQuery) ? '' : 'none';
+            });
+        };
 
         window.toggleUserAccordion = () => {
             isUserAccordionOpen = !isUserAccordionOpen;
