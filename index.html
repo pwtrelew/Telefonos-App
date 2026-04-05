@@ -602,13 +602,12 @@
                 
                 let colsHtml = '';
                 if (isNorte) {
-                    // Norte oiporu menú ymaveguaréicha PC peg̃uarã
                     colsHtml = `
                     <td class="py-2 px-3">
                         <input type="date" value="${num.date || ''}" onchange="updateNumberField('${territory.id}', ${idx}, 'date', this.value)" class="w-full border border-[#3a3a3a] rounded-lg py-1 px-2 text-xs bg-[#1e1e1e] text-[#ffffff] focus:ring-1 focus:ring-[#f5c66d]">
                     </td>
                     <td class="py-2 px-3">
-                        <input type="text" placeholder="Téra..." value="${num.customAssignee || ''}" onchange="updateNumberField('${territory.id}', ${idx}, 'customAssignee', this.value)" class="w-full border border-[#3a3a3a] rounded-lg py-1 px-2 text-xs bg-[#1e1e1e] text-[#ffffff] focus:ring-1 focus:ring-[#f5c66d]">
+                        <input type="text" placeholder="Nombre..." value="${num.customAssignee || ''}" onchange="updateNumberField('${territory.id}', ${idx}, 'customAssignee', this.value)" class="w-full border border-[#3a3a3a] rounded-lg py-1 px-2 text-xs bg-[#1e1e1e] text-[#ffffff] focus:ring-1 focus:ring-[#f5c66d]">
                     </td>
                     <td class="py-2 px-3 rounded-r-lg">
                         <select onchange="updateResult('${territory.id}', ${idx}, 'result', this.value)" class="w-full min-w-[120px] border border-[#3a3a3a] rounded-lg py-1.5 px-2.5 bg-[#2a2a2a] text-[#ffffff] focus:ring-1 focus:ring-[#f5c66d] outline-none text-xs cursor-pointer">
