@@ -37,11 +37,16 @@
         <div class="text-xl font-bold flex items-center gap-2">
             <i class="fa-solid fa-phone text-[#f5c66d]"></i> Teléfonos App
         </div>
-        <div id="nav-user-info" class="hidden flex items-center gap-4">
-            <span id="nav-username" class="font-medium text-[#ffffff] truncate max-w-[120px] sm:max-w-xs"></span>
-            <button onclick="logout()" class="text-[#b3b3b3] hover:text-[#ffffff] transition text-sm flex items-center gap-1">
-                <i class="fa-solid fa-right-from-bracket"></i> <span class="hidden sm:inline">Salir</span>
+        <div class="flex items-center gap-3">
+            <button id="install-btn" class="hidden bg-[#f5c66d] text-[#1e1e1e] px-3 py-1.5 rounded-lg font-bold text-xs sm:text-sm hover:bg-[#ffdf91] transition shadow-md">
+                <i class="fa-solid fa-download"></i> <span class="hidden sm:inline">Instalar App</span>
             </button>
+            <div id="nav-user-info" class="hidden flex items-center gap-4">
+                <span id="nav-username" class="font-medium text-[#ffffff] truncate max-w-[120px] sm:max-w-xs"></span>
+                <button onclick="logout()" class="text-[#b3b3b3] hover:text-[#ffffff] transition text-sm flex items-center gap-1">
+                    <i class="fa-solid fa-right-from-bracket"></i> <span class="hidden sm:inline">Salir</span>
+                </button>
+            </div>
         </div>
     </nav>
 
@@ -72,14 +77,17 @@
         const manifest = {
             name: "Teléfonos App",
             short_name: "Teléfonos App",
-            start_url: ".",
+            start_url: "./",
             display: "standalone",
             background_color: "#1e1e1e",
             theme_color: "#121212",
-            icons: [{"src": "./icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}]
+            icons: [
+                {"src": "./icon.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+                {"src": "./icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+            ]
         };
-        const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
-        const manifestURL = URL.createObjectURL(blob);
+        // Codificamos el manifiesto de forma más segura para móviles
+        const manifestURL = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifest));
         document.head.insertAdjacentHTML('beforeend', `<link rel="manifest" href="${manifestURL}">`);
         
         if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.protocol === 'http:')) {
@@ -87,6 +95,37 @@
                 navigator.serviceWorker.register('./sw.js').catch(() => {});
             });
         }
+
+        // Lógica para capturar y mostrar el botón de instalación manual
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Evita que Chrome muestre el mensaje emergente automático
+            e.preventDefault();
+            // Guarda el evento para dispararlo cuando el usuario haga clic
+            deferredPrompt = e;
+            // Muestra nuestro botón de instalar en la barra superior
+            const installBtn = document.getElementById('install-btn');
+            if(installBtn) {
+                installBtn.classList.remove('hidden');
+                installBtn.onclick = async () => {
+                    // Muestra el prompt oficial de instalación
+                    deferredPrompt.prompt();
+                    // Espera a ver qué elige el usuario
+                    const { outcome } = await deferredPrompt.userChoice;
+                    if(outcome === 'accepted') {
+                        installBtn.classList.add('hidden'); // Lo ocultamos si aceptó
+                    }
+                    deferredPrompt = null;
+                };
+            }
+        });
+
+        // Si la app se instala con éxito (por cualquier medio), ocultamos el botón
+        window.addEventListener('appinstalled', () => {
+            const installBtn = document.getElementById('install-btn');
+            if(installBtn) installBtn.classList.add('hidden');
+            deferredPrompt = null;
+        });
 
         // Protector anti-congelamiento (Si la red falla y no carga en 10 segs)
         setTimeout(() => {
