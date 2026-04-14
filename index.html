@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -86,7 +87,6 @@
                 {"src": "./icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
             ]
         };
-        // Codificamos el manifiesto de forma más segura para móviles
         const manifestURL = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifest));
         document.head.insertAdjacentHTML('beforeend', `<link rel="manifest" href="${manifestURL}">`);
         
@@ -96,38 +96,30 @@
             });
         }
 
-        // Lógica para capturar y mostrar el botón de instalación manual
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => {
-            // Evita que Chrome muestre el mensaje emergente automático
             e.preventDefault();
-            // Guarda el evento para dispararlo cuando el usuario haga clic
             deferredPrompt = e;
-            // Muestra nuestro botón de instalar en la barra superior
             const installBtn = document.getElementById('install-btn');
             if(installBtn) {
                 installBtn.classList.remove('hidden');
                 installBtn.onclick = async () => {
-                    // Muestra el prompt oficial de instalación
                     deferredPrompt.prompt();
-                    // Espera a ver qué elige el usuario
                     const { outcome } = await deferredPrompt.userChoice;
                     if(outcome === 'accepted') {
-                        installBtn.classList.add('hidden'); // Lo ocultamos si aceptó
+                        installBtn.classList.add('hidden');
                     }
                     deferredPrompt = null;
                 };
             }
         });
 
-        // Si la app se instala con éxito (por cualquier medio), ocultamos el botón
         window.addEventListener('appinstalled', () => {
             const installBtn = document.getElementById('install-btn');
             if(installBtn) installBtn.classList.add('hidden');
             deferredPrompt = null;
         });
 
-        // Protector anti-congelamiento (Si la red falla y no carga en 10 segs)
         setTimeout(() => {
             const container = document.getElementById('app-container');
             if (container && container.innerHTML.includes('Cargando sistema...')) {
@@ -193,28 +185,31 @@
 
         const getProgress = (territory, isNorteAssignee) => {
             let totalNumbers = 0;
-            let completedNumbers = 0;
-            let requiredActions = 0;
-            let madeActions = 0;
+            let r1Count = 0;
+            let r2Count = 0;
 
             (territory.numbers || []).forEach(n => {
                 totalNumbers++;
-                requiredActions++; 
-                let r1 = n.result && n.result !== "-";
-                if (r1) madeActions++;
-
-                if (!isNorteAssignee) {
-                    requiredActions++; 
-                    let r2 = n.result2 && n.result2 !== "-";
-                    if (r2) madeActions++;
-                    
-                    if (r1 && r2) completedNumbers++;
-                } else {
-                    if (r1) completedNumbers++;
-                }
+                if (n.result && n.result !== "-") r1Count++;
+                if (n.result2 && n.result2 !== "-") r2Count++;
             });
+
+            let currentRound = 1;
+            let madeActions = r1Count;
+            let requiredActions = totalNumbers;
+            let isComplete = false;
             
-            return { totalNumbers, completedNumbers, requiredActions, madeActions };
+            if (!isNorteAssignee) {
+                if (r1Count === totalNumbers && totalNumbers > 0) {
+                    currentRound = 2;
+                    madeActions = r2Count;
+                }
+                isComplete = (r1Count === totalNumbers && r2Count === totalNumbers && totalNumbers > 0);
+            } else {
+                isComplete = (r1Count === totalNumbers && totalNumbers > 0);
+            }
+            
+            return { totalNumbers, currentRound, r1Count, r2Count, madeActions, requiredActions, isComplete };
         };
 
         const initAuth = async () => {
@@ -231,7 +226,6 @@
 
         const container = document.getElementById('app-container');
 
-        // Controlador maestro de renderizado seguro
         window.renderApp = () => {
             try {
                 const navUserInfo = document.getElementById('nav-user-info');
@@ -378,11 +372,19 @@
                     const prog = getProgress(t, isNorteAssignee);
                     
                     let progressHtml = '';
-                    if (t.status === 'Completado' || (prog.madeActions === prog.requiredActions && prog.requiredActions > 0)) {
-                        progressHtml = `<div class="text-[#cde7ac] font-bold text-sm"><i class="fa-solid fa-check-double"></i> ¡Finalizado!</div>`;
+                    if (prog.isComplete) {
+                        progressHtml = `<div class="text-[#cde7ac] font-bold text-sm"><i class="fa-solid fa-check-double"></i> Finalizado</div>`;
                     } else {
                         let percentage = prog.requiredActions === 0 ? 0 : (prog.madeActions / prog.requiredActions) * 100;
-                        let text = `${prog.completedNumbers} de ${prog.totalNumbers} núm.`;
+                        
+                        // TEXTO DINÁMICO ACTUALIZADO
+                        let text = '';
+                        if (isNorteAssignee) {
+                            text = `${prog.madeActions} de ${prog.totalNumbers}`;
+                        } else {
+                            text = `${prog.madeActions} de ${prog.totalNumbers} (${prog.currentRound} vuelta)`;
+                        }
+
                         progressHtml = `
                             <div class="w-full bg-[#1e1e1e] rounded-full h-3 relative overflow-hidden">
                                 <div class="bg-[#f5c66d] h-3 rounded-full transition-all duration-500" style="width: ${percentage}%"></div>
@@ -434,7 +436,7 @@
                 const terrListHtml = sortedUserTerrs.map(t => {
                     let statusColor = "text-[#b3b3b3]";
                     if(t.status === 'Completado') statusColor = "text-[#cde7ac]";
-                    if(t.status === 'En curso') statusColor = "text-[#f5c66d]";
+                    if(t.status === 'En curso' || t.status === 'Ronda 1' || t.status === 'Ronda 2') statusColor = "text-[#f5c66d]";
                     
                     return `
                     <li class="flex flex-col border-b border-[#3a3a3a] py-2 last:border-0">
@@ -593,7 +595,7 @@
                     const isNorteAssignee = loggedInAppUser?.username?.toLowerCase() === 'norte';
                     const prog = getProgress(t, isNorteAssignee);
 
-                    if (displayStatus === 'Completado' || (prog.madeActions === prog.requiredActions && prog.requiredActions > 0)) { 
+                    if (prog.isComplete) { 
                         statusColor = 'bg-[#1e1e1e] border-[#cde7ac] text-[#ffffff]'; 
                         icon = 'fa-check-circle text-[#cde7ac]'; 
                         statusTextColor = 'text-[#cde7ac]';
@@ -606,7 +608,15 @@
                         displayStatus = 'En curso';
                     }
 
-                    let progressText = `${prog.completedNumbers}/${prog.totalNumbers} núm.`;
+                    // Textos personalizados según la ronda y si finalizó
+                    let progressText = '';
+                    if (prog.isComplete) {
+                        progressText = `${prog.totalNumbers}/${prog.totalNumbers} núm. terminado`;
+                    } else {
+                        let roundName = prog.currentRound === 1 ? 'primer vuelta' : 'segunda vuelta';
+                        progressText = `${prog.madeActions}/${prog.totalNumbers} núm. ${roundName}`;
+                    }
+
                     let percentage = prog.requiredActions === 0 ? 0 : (prog.madeActions / prog.requiredActions) * 100;
 
                     return `
@@ -675,6 +685,7 @@
             if (!territory) { currentViewTerritoryId = null; renderApp(); return; }
 
             const isNorte = loggedInAppUser && loggedInAppUser?.username?.toLowerCase() === 'norte';
+            const prog = getProgress(territory, isNorte);
             
             let theadHtml = '';
             let rowsHtml = '';
@@ -720,20 +731,34 @@
                 }).join('');
 
             } else {
-                // --- MODO PUBLICADOR NORMAL ---
+                // --- MODO PUBLICADOR NORMAL (Dinámico según la vuelta) ---
+                const isRound2 = prog.currentRound === 2;
+                const colTitle = isRound2 ? 'Segunda Vuelta' : '1ra Vuelta';
+                const fieldName = isRound2 ? 'result2' : 'result';
+                const dateField = isRound2 ? 'date2' : 'date';
+
                 theadHtml = `
                 <tr>
-                    <th class="py-2 px-3 w-[40%] text-[#b3b3b3] rounded-l-lg">Teléfono</th>
-                    <th class="py-2 px-1 sm:px-3 w-[30%] text-[#b3b3b3]">1ra Vuelta</th>
-                    <th class="py-2 px-1 sm:px-3 w-[30%] text-[#b3b3b3] rounded-r-lg">2da Vuelta</th>
+                    <th class="py-2 px-3 w-[45%] text-[#b3b3b3] rounded-l-lg">Teléfono</th>
+                    <th class="py-2 px-1 sm:px-3 w-[35%] text-[#b3b3b3]">${colTitle}</th>
+                    <th class="py-2 px-1 sm:px-3 w-[20%] text-[#b3b3b3] text-center rounded-r-lg">Fecha</th>
                 </tr>`;
 
                 rowsHtml = (territory.numbers || []).map((num, idx) => {
-                    const labelText1 = num.result || '-';
-                    const labelColor1 = labelText1 === '-' ? 'text-[#b3b3b3]' : 'text-[#ffffff]';
-                    const labelText2 = num.result2 || '-';
-                    const labelColor2 = labelText2 === '-' ? 'text-[#b3b3b3]' : 'text-[#ffffff]';
-                    const isCalled = num.result && num.result !== "-";
+                    const valResult = num[fieldName] || '-';
+                    const valDate = num[dateField] || '';
+                    const labelColor1 = valResult === '-' ? 'text-[#b3b3b3]' : 'text-[#ffffff]';
+                    const isCalled = valResult && valResult !== "-";
+                    
+                    let displayDate = '-';
+                    if (valDate) {
+                        if (valDate.includes('-')) {
+                            const [y, m, d] = valDate.split('-');
+                            displayDate = `${d}/${m}`;
+                        } else {
+                            displayDate = valDate;
+                        }
+                    }
 
                     return `
                     <tr class="hover:bg-[#2a2a2a] transition-colors ${isCalled ? 'bg-[#1e1e1e] opacity-70' : ''} rounded-lg">
@@ -746,16 +771,13 @@
                             </div>
                         </td>
                         <td class="py-2 px-1 sm:px-3">
-                            <button onclick="openResultSheet('${territory.id}', ${idx}, 'result', '1ra Vuelta')" class="w-full min-w-[100px] border border-[#3a3a3a] rounded-lg py-2 px-2 bg-[#2a2a2a] text-left flex justify-between items-center focus:ring-1 focus:ring-[#f5c66d] outline-none text-[11px] sm:text-xs cursor-pointer shadow-sm hover:bg-[#3a3a3a] transition">
-                                <span class="truncate pr-1 ${labelColor1}">${labelText1}</span>
+                            <button onclick="openResultSheet('${territory.id}', ${idx}, '${fieldName}', '${colTitle}')" class="w-full min-w-[100px] border border-[#3a3a3a] rounded-lg py-2 px-2 bg-[#2a2a2a] text-left flex justify-between items-center focus:ring-1 focus:ring-[#f5c66d] outline-none text-[11px] sm:text-xs cursor-pointer shadow-sm hover:bg-[#3a3a3a] transition">
+                                <span class="truncate pr-1 ${labelColor1}">${valResult}</span>
                                 <i class="fa-solid fa-chevron-down text-[#b3b3b3] text-[10px]"></i>
                             </button>
                         </td>
-                        <td class="py-2 px-1 sm:px-3 rounded-r-lg">
-                            <button onclick="openResultSheet('${territory.id}', ${idx}, 'result2', '2da Vuelta')" class="w-full min-w-[100px] border border-[#3a3a3a] rounded-lg py-2 px-2 bg-[#2a2a2a] text-left flex justify-between items-center focus:ring-1 focus:ring-[#f5c66d] outline-none text-[11px] sm:text-xs cursor-pointer shadow-sm hover:bg-[#3a3a3a] transition">
-                                <span class="truncate pr-1 ${labelColor2}">${labelText2}</span>
-                                <i class="fa-solid fa-chevron-down text-[#b3b3b3] text-[10px]"></i>
-                            </button>
+                        <td class="py-2 px-1 sm:px-3 rounded-r-lg text-center">
+                            <span class="text-xs ${isCalled ? 'text-[#cde7ac] font-bold' : 'text-[#b3b3b3]'}">${displayDate}</span>
                         </td>
                     </tr>
                     `;
@@ -789,9 +811,9 @@
                         </table>
                     </div>
                     
-                    ${displayStatus === 'Completado' ? `
+                    ${prog.isComplete ? `
                         <div class="bg-[#cde7ac] p-4 md:p-6 text-center text-[#1e1e1e] font-extrabold border-t border-[#cde7ac] flex items-center justify-center gap-3">
-                            <i class="fa-solid fa-check-double text-xl md:text-2xl"></i> ¡Territorio completado en su totalidad!
+                            Felicitaciones! Terminaste este territorio!
                         </div>
                     ` : ''}
                 </div>
@@ -1110,7 +1132,9 @@
                         result: "-",
                         result2: "-",
                         checked1: false,
-                        checked2: false
+                        checked2: false,
+                        date: "",
+                        date2: ""
                     }));
                 }
                 
@@ -1124,22 +1148,32 @@
             } catch (err) { console.error("Error asignando:", err); }
         };
 
+        // ACTUALIZADO: Registrar fecha correspondiente a la vuelta y actualizar estado
         window.updateResult = async (tId, numIndex, field, newResult) => {
             const territory = allTerritories.find(t => t.id === tId);
             if (!territory || !territory.numbers) return;
             
             territory.numbers[numIndex][field] = newResult;
 
+            if (newResult !== "-") {
+                const now = new Date();
+                const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                if (field === 'result') territory.numbers[numIndex].date = today;
+                if (field === 'result2') territory.numbers[numIndex].date2 = today;
+            } else {
+                if (field === 'result') territory.numbers[numIndex].date = "";
+                if (field === 'result2') territory.numbers[numIndex].date2 = "";
+            }
+
             const assignedUser = allUsers.find(u => u.id === territory.assignedTo);
             const isNorteAssignee = assignedUser && assignedUser?.username?.toLowerCase() === 'norte';
 
             const prog = getProgress(territory, isNorteAssignee);
-            const isComplete = (prog.madeActions === prog.requiredActions && prog.requiredActions > 0);
 
             let newStatus = territory.assignedTo ? 'En curso' : 'Pendiente';
             let completedDate = territory.completedDate || null;
 
-            if (isComplete) {
+            if (prog.isComplete) {
                 newStatus = 'Completado';
                 if (territory.status !== 'Completado') completedDate = new Date().toISOString();
             } else {
@@ -1212,7 +1246,7 @@
                     window.dataListenersInitialized = true;
                     initDataListeners(); 
                 }
-                renderApp(); // ¡Dibuja la pantalla de login de inmediato sin esperar a la BD!
+                renderApp();
             }
         });
 
@@ -1223,3 +1257,4 @@
 </html>
 
 
+```
