@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -5,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Teléfonos App</title>
     
-    <!-- Íconos de la aplicación -->
     <link rel="icon" type="image/png" href="./icon.png">
     <link rel="apple-touch-icon" href="./icon.png">
     
@@ -32,7 +32,6 @@
 </head>
 <body class="bg-[#1e1e1e] text-[#ffffff] min-h-screen">
 
-    <!-- Navbar -->
     <nav class="bg-[#121212] text-[#ffffff] shadow-md p-4 flex justify-between items-center sticky top-0 z-50 rounded-b-3xl">
         <div class="text-xl font-bold flex items-center gap-2">
             <i class="fa-solid fa-phone text-[#f5c66d]"></i> Teléfonos App
@@ -50,7 +49,6 @@
         </div>
     </nav>
 
-    <!-- Contenedor Principal de la App -->
     <main id="app-container" class="p-4 max-w-7xl mx-auto fade-in">
         <div class="text-center py-10">
             <i class="fa-solid fa-circle-notch fa-spin text-4xl text-[#f5c66d]"></i>
@@ -58,7 +56,6 @@
         </div>
     </main>
 
-    <!-- BOTTOM SHEET MODAL (Menú deslizable) -->
     <div id="bottom-sheet-overlay" class="fixed inset-0 bg-black bg-opacity-70 z-[100] opacity-0 pointer-events-none transition-opacity duration-300" onclick="closeBottomSheet()"></div>
     <div id="bottom-sheet" class="fixed left-0 right-0 bottom-0 bg-[#1e1e1e] rounded-t-3xl z-[101] translate-y-full transition-transform duration-300 max-h-[85vh] flex flex-col shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
         <div class="p-5 border-b border-[#2a2a2a] flex justify-between items-center sticky top-0 bg-[#1e1e1e] rounded-t-3xl z-10">
@@ -68,11 +65,9 @@
             </button>
         </div>
         <div id="bottom-sheet-content" class="overflow-y-auto pb-6">
-            <!-- El contenido se inyecta dinámicamente -->
-        </div>
+            </div>
     </div>
 
-    <!-- PWA Setup Dinámico -->
     <script>
         const manifest = {
             name: "Teléfonos App",
@@ -134,7 +129,6 @@
         }, 10000);
     </script>
 
-    <!-- Firebase Logic -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -611,8 +605,12 @@
                     if (prog.isComplete) {
                         progressText = `${prog.totalNumbers}/${prog.totalNumbers} núm. terminado`;
                     } else {
-                        let roundName = prog.currentRound === 1 ? 'primer vuelta' : 'segunda vuelta';
-                        progressText = `${prog.madeActions}/${prog.totalNumbers} núm. ${roundName}`;
+                        if (isNorteAssignee) {
+                            progressText = `${prog.madeActions}/${prog.totalNumbers} núm.`;
+                        } else {
+                            let roundName = prog.currentRound === 1 ? 'primer vuelta' : 'segunda vuelta';
+                            progressText = `${prog.madeActions}/${prog.totalNumbers} núm. ${roundName}`;
+                        }
                     }
 
                     let percentage = prog.requiredActions === 0 ? 0 : (prog.madeActions / prog.requiredActions) * 100;
@@ -1147,6 +1145,7 @@
             } catch (err) { console.error("Error asignando:", err); }
         };
 
+        // ACTUALIZADO: Registrar fecha correspondiente a la vuelta y actualizar estado
         window.updateResult = async (tId, numIndex, field, newResult) => {
             const territory = allTerritories.find(t => t.id === tId);
             if (!territory || !territory.numbers) return;
@@ -1253,3 +1252,6 @@
     </script>
 </body>
 </html>
+
+
+```
