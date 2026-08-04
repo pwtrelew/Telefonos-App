@@ -646,20 +646,33 @@
 
                     let percentage = prog.requiredActions === 0 ? 0 : (prog.madeActions / prog.requiredActions) * 100;
 
+                    let motivationalMessage = '';
+                    if (prog.currentRound === 2 && !prog.isComplete && !isNorteAssignee) {
+                        const faltantes = prog.totalNumbers - prog.madeActions;
+                        motivationalMessage = `
+                        <div class="mt-4 bg-[#2a2a2a] p-3 rounded-xl border border-[#f5c66d] border-opacity-50 text-center fade-in">
+                            <p class="text-[11px] leading-relaxed text-[#ffffff]">
+                                ¡Vamos por la segunda vuelta, muy bien! Estás a <strong class="text-[#f5c66d] text-sm">${faltantes}</strong> de terminar el territorio. ¡Dale que podés!
+                            </p>
+                        </div>
+                        `;
+                    }
+
                     return `
                     <div onclick="openTerritory('${t.id}')" class="${statusColor} border rounded-3xl p-6 cursor-pointer hover:shadow-2xl transition relative overflow-hidden group flex flex-col justify-between">
                         <div>
                             <div class="flex items-center justify-between mb-4">
-                                <h3 class="font-extrabold text-2xl">${safeTerrName}</h3>
+                                <h3 class="font-extrabold text-2xl">${t.name}</h3>
                                 <i class="fa-solid ${icon} text-3xl"></i>
                             </div>
-                            <p class="text-sm font-bold mb-3 ${statusTextColor}">${escapeHTML(displayStatus)}</p>
+                            <p class="text-sm font-bold mb-3 ${statusTextColor}">${displayStatus}</p>
                             <div class="w-full bg-[#3a3a3a] rounded-full h-3 mb-2">
                                 <div class="${progressFillColor} h-3 rounded-full" style="width: ${percentage}%"></div>
                             </div>
                             <p class="text-xs text-[#b3b3b3] text-right font-medium">${progressText}</p>
                         </div>
-                        <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition flex items-center justify-center">
+                        ${motivationalMessage}
+                        <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition flex items-center justify-center z-10">
                             <span class="opacity-0 group-hover:opacity-100 bg-[#f5c66d] text-[#1e1e1e] px-4 py-1.5 rounded-full shadow-lg text-sm font-extrabold transition">Abrir</span>
                         </div>
                     </div>
@@ -765,7 +778,7 @@
             } else {
                 // --- MODO PUBLICADOR NORMAL (Dinámico según la vuelta) ---
                 const isRound2 = prog.currentRound === 2;
-                const colTitle = isRound2 ? 'Segunda Vuelta' : '1ra Vuelta';
+                const colTitle = isRound2 ? '2da vuelta' : '1ra Vuelta';
                 const fieldName = isRound2 ? 'result2' : 'result';
                 const dateField = isRound2 ? 'date2' : 'date';
 
