@@ -448,10 +448,17 @@
                         </td>
                         <td class="py-3 px-2 sm:px-4 w-auto">${progressHtml}</td>
                         <td class="py-3 px-2 sm:px-4 rounded-r-lg w-[120px] sm:w-1/3">
-                            <button onclick="openAssignSheet('${t.id}')" class="w-full border border-[#3a3a3a] rounded-lg py-1.5 px-3 bg-[#1e1e1e] text-left flex justify-between items-center focus:ring-1 focus:ring-[#f5c66d] outline-none text-xs sm:text-sm cursor-pointer shadow-sm hover:bg-[#2a2a2a] transition">
-                                <span class="truncate pr-2 ${labelColor}">${labelText}</span>
-                                <i class="fa-solid fa-chevron-down text-[#b3b3b3] text-[10px]"></i>
-                            </button>
+                            <div class="flex items-center gap-1">
+                                <button onclick="openAssignSheet('${t.id}')" class="w-full border border-[#3a3a3a] rounded-lg py-1.5 px-3 bg-[#1e1e1e] text-left flex justify-between items-center focus:ring-1 focus:ring-[#f5c66d] outline-none text-xs sm:text-sm cursor-pointer shadow-sm hover:bg-[#2a2a2a] transition">
+                                    <span class="truncate pr-2 ${labelColor}">${labelText}</span>
+                                    <i class="fa-solid fa-chevron-down text-[#b3b3b3] text-[10px]"></i>
+                                </button>
+                                ${isNorteAssignee ? `
+                                <button onclick="cleanNorteNames('${t.id}', '${safeTerrName.replace(/'/g, "\\'")}')" class="bg-[#2a2a2a] text-[#f5c66d] hover:bg-[#3a3a3a] p-1.5 rounded-lg border border-[#3a3a3a] transition" title="Limpiar nombres precargados de este territorio sin borrar resultados">
+                                    <i class="fa-solid fa-broom text-xs"></i>
+                                </button>
+                                ` : ''}
+                            </div>
                         </td>
                     </tr>
                     `;
@@ -768,20 +775,20 @@
                     const optHtml1 = OpcionesLlamada.map(opt => `<option value="${escapeHTML(opt)}" ${num.result === opt ? 'selected' : ''} class="text-[#ffffff] bg-[#2a2a2a]">${escapeHTML(opt)}</option>`).join('');
                     
                     return `
-                    <tr class="bg-[#1e1e1e] hover:bg-[#252525]">
-                        <td class="excel-td border border-[#4a4a4a] py-1 px-1 font-bold text-[11px] sm:text-xs text-[#ffffff] whitespace-nowrap select-none transition-colors w-[80px] min-w-[80px] max-w-[80px] text-center overflow-hidden" data-row="${idx}" data-col="0" onmousedown="startExcelDrag(${idx}, 0)" onmouseenter="enterExcelDrag(${idx}, 0)">
+                    <tr class="bg-[#1e1e1e] hover:bg-[#252525]" oncontextmenu="return false;">
+                        <td class="excel-td border border-[#4a4a4a] py-1 px-1 font-bold text-[11px] sm:text-xs text-[#ffffff] whitespace-nowrap select-none transition-colors w-[80px] min-w-[80px] max-w-[80px] text-center overflow-hidden" data-row="${idx}" data-col="0" onmousedown="startExcelDrag(event, ${idx}, 0)" onmouseenter="enterExcelDrag(event, ${idx}, 0)">
                             <div class="flex items-center justify-center">
                                 <span class="truncate">${safePhone}</span>
                                 <input type="hidden" class="excel-cell" data-row="${idx}" data-col="0" value="${safePhone}">
                             </div>
                         </td>
-                        <td class="excel-td border border-[#4a4a4a] p-0 relative transition-colors w-[90px] min-w-[90px] max-w-[90px]" data-row="${idx}" data-col="1" onmousedown="startExcelDrag(${idx}, 1)" onmouseenter="enterExcelDrag(${idx}, 1)">
+                        <td class="excel-td border border-[#4a4a4a] p-0 relative transition-colors w-[90px] min-w-[90px] max-w-[90px]" data-row="${idx}" data-col="1" onmousedown="startExcelDrag(event, ${idx}, 1)" onmouseenter="enterExcelDrag(event, ${idx}, 1)">
                             <input type="text" data-row="${idx}" data-col="1" value="${safeAssignee.replace(/"/g, '&quot;')}" onchange="handleAssigneeChange('${territory.id}', ${idx}, this.value)" onpaste="handleExcelPaste(event, ${idx}, 1)" class="excel-cell w-full h-full min-h-[30px] bg-transparent px-1 py-0 outline-none focus:bg-[#3a3a3a] text-[#ffffff] text-[11px] sm:text-xs text-center cursor-cell transition-colors overflow-hidden" autocomplete="off" spellcheck="false">
                         </td>
-                        <td class="excel-td border border-[#4a4a4a] p-0 relative transition-colors" data-row="${idx}" data-col="2" onmousedown="startExcelDrag(${idx}, 2)" onmouseenter="enterExcelDrag(${idx}, 2)">
+                        <td class="excel-td border border-[#4a4a4a] p-0 relative transition-colors" data-row="${idx}" data-col="2" onmousedown="startExcelDrag(event, ${idx}, 2)" onmouseenter="enterExcelDrag(event, ${idx}, 2)">
                             <input type="date" id="date-${territory.id}-${idx}" data-row="${idx}" data-col="2" value="${safeDate.replace(/"/g, '&quot;')}" onchange="updateNumberField('${territory.id}', ${idx}, 'date', this.value)" onpaste="handleExcelPaste(event, ${idx}, 2)" class="excel-cell w-full h-full min-h-[30px] bg-transparent px-1 py-0 outline-none focus:bg-[#3a3a3a] text-[#ffffff] text-xs cursor-cell transition-colors">
                         </td>
-                        <td class="excel-td border border-[#4a4a4a] p-0 relative transition-colors" data-row="${idx}" data-col="3" onmousedown="startExcelDrag(${idx}, 3)" onmouseenter="enterExcelDrag(${idx}, 3)">
+                        <td class="excel-td border border-[#4a4a4a] p-0 relative transition-colors" data-row="${idx}" data-col="3" onmousedown="startExcelDrag(event, ${idx}, 3)" onmouseenter="enterExcelDrag(event, ${idx}, 3)">
                             <select data-row="${idx}" data-col="3" onchange="updateResult('${territory.id}', ${idx}, 'result', this.value)" onpaste="handleExcelPaste(event, ${idx}, 3)" class="excel-cell w-full h-full min-h-[30px] bg-transparent px-1 py-0 outline-none focus:bg-[#3a3a3a] text-[#ffffff] text-[11px] cursor-cell appearance-none transition-colors">
                                 ${optHtml1}
                             </select>
@@ -882,7 +889,10 @@
         };
 
         // ---- LÓGICA DE SELECCIÓN MÚLTIPLE EXCEL (NORTE) ----
-        window.startExcelDrag = (r, c) => {
+        window.startExcelDrag = (e, r, c) => {
+            if (e && e.button === 2) {
+                e.preventDefault(); // Evita que salga el menú contextual al arrastrar con clic derecho
+            }
             excelSel.isDragging = true;
             excelSel.startR = r;
             excelSel.startC = c;
@@ -891,11 +901,209 @@
             updateExcelSelectionUI();
         };
 
-        window.enterExcelDrag = (r, c) => {
+        window.enterExcelDrag = (e, r, c) => {
             if (excelSel.isDragging) {
                 excelSel.endR = r;
                 excelSel.endC = c;
                 updateExcelSelectionUI();
+            }
+        };
+
+        window.updateExcelSelectionUI = () => {
+            const minR = Math.min(excelSel.startR, excelSel.endR);
+            const maxR = Math.max(excelSel.startR, excelSel.endR);
+            const minC = Math.min(excelSel.startC, excelSel.endC);
+            const maxC = Math.max(excelSel.startC, excelSel.endC);
+
+            document.querySelectorAll('.excel-td').forEach(td => {
+                const r = parseInt(td.dataset.row);
+                const c = parseInt(td.dataset.col);
+                if (r >= minR && r <= maxR && c >= minC && c <= maxC) {
+                    td.classList.add('bg-[#1a4066]', 'excel-selected'); 
+                } else {
+                    td.classList.remove('bg-[#1a4066]', 'excel-selected');
+                }
+            });
+        };
+
+        document.addEventListener('mouseup', () => {
+            if (excelSel.isDragging) excelSel.isDragging = false;
+        });
+
+        document.addEventListener('keydown', async (e) => {
+            const isNorte = loggedInAppUser?.username?.toLowerCase() === 'norte';
+            if (!isNorte || !currentViewTerritoryId) return;
+
+            const minR = Math.min(excelSel.startR, excelSel.endR);
+            const maxR = Math.max(excelSel.startR, excelSel.endR);
+            const minC = Math.min(excelSel.startC, excelSel.endC);
+            const maxC = Math.max(excelSel.startC, excelSel.endC);
+
+            if (minR === -1) return;
+
+            // Copiar bloque (Ctrl + C)
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+                let tsv = '';
+                for (let r = minR; r <= maxR; r++) {
+                    let rowData = [];
+                    for (let c = minC; c <= maxC; c++) {
+                        const el = document.querySelector(`.excel-cell[data-row="${r}"][data-col="${c}"]`);
+                        rowData.push(el ? el.value : '');
+                    }
+                    tsv += rowData.join('\t') + (r === maxR ? '' : '\n');
+                }
+                
+                if (tsv !== '') {
+                    navigator.clipboard.writeText(tsv).then(() => {
+                        document.querySelectorAll('.excel-selected').forEach(td => {
+                            td.classList.add('opacity-50');
+                            setTimeout(() => td.classList.remove('opacity-50'), 150);
+                        });
+                    });
+                }
+            }
+
+            // Pegar bloque en celdas seleccionadas si no hay una celda enfocada directamente (Ctrl + V)
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+                const activeEl = document.activeElement;
+                const isInputFocused = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT');
+                if (!isInputFocused) {
+                    try {
+                        const text = await navigator.clipboard.readText();
+                        if (text) {
+                            await applyExcelPasteData(text, minR, minC);
+                        }
+                    } catch (err) {}
+                }
+            }
+
+            // Borrar bloque seleccionado (Suprimir / Delete o Backspace)
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                const activeEl = document.activeElement;
+                const isInputFocused = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT');
+                const isMultipleSelection = (minR !== maxR) || (minC !== maxC);
+
+                // Si hay varias celdas seleccionadas o si no está escribiendo dentro de una sola celda
+                if (isMultipleSelection || !isInputFocused) {
+                    e.preventDefault();
+                    if (isInputFocused) activeEl.blur();
+
+                    const territory = allTerritories.find(t => t.id === currentViewTerritoryId);
+                    if (!territory || !territory.numbers) return;
+
+                    let updated = false;
+                    for (let r = minR; r <= maxR; r++) {
+                        if (!territory.numbers[r]) continue;
+                        for (let c = minC; c <= maxC; c++) {
+                            if (c === 1) {
+                                territory.numbers[r].customAssignee = "";
+                                updated = true;
+                            } else if (c === 2) {
+                                territory.numbers[r].date = "";
+                                updated = true;
+                            } else if (c === 3) {
+                                territory.numbers[r].result = "-";
+                                updated = true;
+                            }
+                        }
+                    }
+
+                    if (updated) {
+                        const prog = getProgress(territory, true);
+                        let newStatus = prog.isComplete ? 'Completado' : (territory.assignedTo ? 'En curso' : 'Pendiente');
+                        let completedDate = prog.isComplete ? (territory.completedDate || new Date().toISOString()) : null;
+
+                        try {
+                            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'territories', currentViewTerritoryId), {
+                                numbers: territory.numbers,
+                                status: newStatus,
+                                completedDate: completedDate
+                            });
+                        } catch (err) { console.error("Borrado en bloque guardado offline", err); }
+                    }
+                }
+            }
+        });
+
+        const applyExcelPasteData = async (pasteData, startRow, startCol) => {
+            const territory = allTerritories.find(t => t.id === currentViewTerritoryId);
+            if (!territory || !territory.numbers) return;
+
+            const rows = pasteData.split(/\r?\n/);
+            if (rows.length > 0 && rows[rows.length - 1] === "") rows.pop();
+
+            const now = new Date();
+            const localToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            let updated = false;
+
+            const minR = Math.min(excelSel.startR, excelSel.endR);
+            const maxR = Math.max(excelSel.startR, excelSel.endR);
+            const minC = Math.min(excelSel.startC, excelSel.endC);
+            const maxC = Math.max(excelSel.startC, excelSel.endC);
+
+            // Si copió un solo valor pero seleccionó varias celdas con clic derecho, rellena todo el bloque seleccionado
+            if (rows.length === 1 && !rows[0].includes('\t') && minR !== -1 && (minR !== maxR || minC !== maxC)) {
+                const val = rows[0].trim();
+                for (let r = minR; r <= maxR; r++) {
+                    if (r >= territory.numbers.length) break;
+                    for (let c = minC; c <= maxC; c++) {
+                        if (c === 1) {
+                            territory.numbers[r].customAssignee = val;
+                            if (val !== '' && !territory.numbers[r].date) territory.numbers[r].date = localToday;
+                            updated = true;
+                        } else if (c === 2) {
+                            territory.numbers[r].date = val;
+                            updated = true;
+                        } else if (c === 3) {
+                            const matchedOpt = OpcionesLlamada.find(o => o.toLowerCase() === val.toLowerCase());
+                            territory.numbers[r].result = matchedOpt ? matchedOpt : val;
+                            updated = true;
+                        }
+                    }
+                }
+            } else {
+                for (let i = 0; i < rows.length; i++) {
+                    const cols = rows[i].split('\t');
+                    const targetR = startRow + i;
+                    if (targetR >= territory.numbers.length) break;
+
+                    for (let j = 0; j < cols.length; j++) {
+                        const targetC = startCol + j;
+                        const val = cols[j].trim();
+
+                        if (targetC === 1) { 
+                            territory.numbers[targetR].customAssignee = val;
+                            if (val !== '' && !territory.numbers[targetR].date) territory.numbers[targetR].date = localToday;
+                            updated = true;
+                        } else if (targetC === 2) { 
+                            territory.numbers[targetR].date = val;
+                            updated = true;
+                        } else if (targetC === 3) { 
+                            const matchedOpt = OpcionesLlamada.find(o => o.toLowerCase() === val.toLowerCase());
+                            territory.numbers[targetR].result = matchedOpt ? matchedOpt : val;
+                            updated = true;
+                        }
+                    }
+                }
+            }
+
+            if (updated) {
+                try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'territories', currentViewTerritoryId), { numbers: territory.numbers }); } 
+                catch (err) { console.error("Update guardado en caché offline", err); }
+            }
+        };
+
+        window.handleExcelPaste = async (e, startRow, startCol) => {
+            const pasteData = (e.clipboardData || window.clipboardData).getData('text');
+            if (!pasteData) return;
+
+            const minR = Math.min(excelSel.startR, excelSel.endR);
+            const maxR = Math.max(excelSel.startR, excelSel.endR);
+            const isMultiRowSel = minR !== -1 && (minR !== maxR);
+
+            if (pasteData.includes('\t') || pasteData.includes('\n') || isMultiRowSel) {
+                e.preventDefault(); 
+                await applyExcelPasteData(pasteData, startRow, startCol);
             }
         };
 
@@ -1168,13 +1376,48 @@
             try { localStorage.removeItem('savedSessionId'); } catch(e){}
             renderApp(); 
         };
-        window.openTerritory = (id) => { currentViewTerritoryId = id; renderApp(); };
+        window.openTerritory = (id) => { 
+            currentViewTerritoryId = id; 
+            renderApp(); 
+
+            const isNorte = loggedInAppUser && loggedInAppUser?.username?.toLowerCase() === 'norte';
+            if (isNorte) {
+                setTimeout(() => {
+                    const territory = allTerritories.find(t => t.id === id);
+                    if (territory && territory.numbers) {
+                        let lastIdx = -1;
+                        territory.numbers.forEach((n, idx) => {
+                            if ((n.result && n.result !== '-') || (n.customAssignee && n.customAssignee.trim() !== '') || (n.date && n.date.trim() !== '')) {
+                                lastIdx = idx;
+                            }
+                        });
+                        if (lastIdx > 0) {
+                            const scrollContainer = document.getElementById('numbers-scroll-container');
+                            const targetRow = document.querySelector(`.excel-td[data-row="${lastIdx}"]`);
+                            if (scrollContainer && targetRow) {
+                                scrollContainer.scrollTop = Math.max(0, targetRow.offsetTop - 80);
+                            }
+                        }
+                    }
+                }, 60);
+            }
+        };
         window.closeTerritory = () => { currentViewTerritoryId = null; renderApp(); };
 
         window.unassignTerritory = (tId, tName) => {
-            if(confirm(`¿Seguro que deseas quitarle el Territorio ${tName} al publicador asignado? Volverá a estar libre, pendiente y su progreso regresará a cero.`)) {
-                assignTerritory(tId, "");
-            }
+            assignTerritory(tId, "");
+        };
+
+        window.cleanNorteNames = async (tId, tName) => {
+            const territory = allTerritories.find(t => t.id === tId);
+            if (!territory || !territory.numbers) return;
+            const cleanedNumbers = territory.numbers.map(n => ({
+                ...n,
+                customAssignee: ""
+            }));
+            try {
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'territories', tId), { numbers: cleanedNumbers });
+            } catch (err) { console.error("Error limpiando nombres:", err); }
         };
 
         window.assignTerritory = async (tId, userId) => {
@@ -1192,6 +1435,7 @@
                     updateData.completedDate = null; 
                     updateData.numbers = (territory.numbers || []).map(n => ({
                         ...n,
+                        customAssignee: "",
                         result: "-",
                         result2: "-",
                         checked1: false,
@@ -1204,6 +1448,20 @@
                 if (userId && territory.assignedTo !== userId) { 
                     updateData.assignedDate = new Date().toISOString(); 
                     updateData.completedDate = null; 
+                    
+                    // Si es un territorio nuevo (Pendiente), nos aseguramos que entre totalmente limpio sin nombres viejos precargados
+                    if (territory.status === 'Pendiente') {
+                        updateData.numbers = (territory.numbers || []).map(n => ({
+                            ...n,
+                            customAssignee: "",
+                            result: "-",
+                            result2: "-",
+                            checked1: false,
+                            checked2: false,
+                            date: "",
+                            date2: ""
+                        }));
+                    }
                 }
 
                 updateData.status = newStatus;
