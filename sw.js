@@ -1,11 +1,11 @@
-const CACHE_NAME = 'telefonos-app-v9'; // Subimos a v9 para que se actualice automático sin perder ningún dato
+const CACHE_NAME = 'telefonos-app-v11'; // Subimos a v11 para que se actualice automático sin perder ningún dato
 const urlsToCache = [
     './',
     './index.html',
     './icon.png'
 ];
 
-// 1. Instalación: Guarda los archivos nuevos en la caché v9
+// 1. Instalación: Guarda los archivos nuevos en la caché v11
 self.addEventListener('install', event => {
     event.waitUntil(
         caches.open(CACHE_NAME)
@@ -14,7 +14,7 @@ self.addEventListener('install', event => {
     self.skipWaiting(); // Obliga al nuevo Service Worker a tomar el control de inmediato
 });
 
-// 2. Activación y Limpieza: Destruye todas las versiones viejas (v1, v2... v8) para que no estorben
+// 2. Activación y Limpieza: Destruye todas las versiones viejas para que no estorben
 self.addEventListener('activate', event => {
     event.waitUntil(
         caches.keys().then(cacheNames => {
