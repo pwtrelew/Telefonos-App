@@ -28,6 +28,17 @@
 
         /* Ocultar flecha del select en Modo Excel */
         select.excel-cell::-ms-expand { display: none; }
+
+        /* Colores de fondo para celdas de Norte con alto contraste para texto blanco */
+        .cell-bg-yellow { background-color: #785206 !important; color: #ffffff !important; }
+        .cell-bg-green { background-color: #13532d !important; color: #ffffff !important; }
+        .cell-bg-blue { background-color: #163e6c !important; color: #ffffff !important; }
+
+        /* Resaltado de selección tipo Excel sin tapar el color de fondo */
+        .excel-selected {
+            box-shadow: inset 0 0 0 2px #f5c66d !important;
+            background-image: linear-gradient(rgba(245, 198, 109, 0.18), rgba(245, 198, 109, 0.18)) !important;
+        }
     </style>
 </head>
 <body class="bg-[#1e1e1e] text-[#ffffff] min-h-screen">
@@ -67,6 +78,46 @@
             <div class="flex gap-3">
                 <button onclick="closeConfirmModal()" class="flex-1 py-2.5 rounded-xl bg-[#3a3a3a] text-[#ffffff] font-bold text-xs hover:bg-[#4a4a4a] transition">Cancelar</button>
                 <button id="confirm-modal-yes" class="flex-1 py-2.5 rounded-xl bg-red-500 text-[#ffffff] font-bold text-xs hover:bg-red-600 transition">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Advertencia (Territorio anterior pendiente) -->
+    <div id="custom-warning-overlay" class="fixed inset-0 bg-black bg-opacity-75 z-[115] hidden items-center justify-center p-4">
+        <div class="bg-[#2a2a2a] border border-[#f5c66d] rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center fade-in">
+            <div class="w-12 h-12 rounded-full bg-[#f5c66d]/20 text-[#f5c66d] flex items-center justify-center mx-auto mb-4 text-xl">
+                <i class="fa-solid fa-bell"></i>
+            </div>
+            <h3 class="text-lg font-extrabold text-[#ffffff] mb-2">¡Atención!</h3>
+            <p id="warning-modal-msg" class="text-xs sm:text-sm text-[#ffffff] mb-6 leading-relaxed"></p>
+            <button onclick="closeWarningModal()" class="w-full py-2.5 rounded-xl bg-[#f5c66d] text-[#1e1e1e] font-extrabold text-xs sm:text-sm hover:bg-[#ffdf91] transition">Entendido</button>
+        </div>
+    </div>
+
+    <!-- Menú Contextual Clic Derecho (Exclusivo Modo Excel / Norte) -->
+    <div id="excel-context-menu" class="hidden fixed z-[150] bg-[#252525] border border-[#4a4a4a] rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.8)] py-2 w-52 text-xs text-[#ffffff] select-none">
+        <button onclick="excelMenuCopy()" class="w-full text-left px-4 py-2.5 hover:bg-[#353535] flex items-center justify-between transition">
+            <span class="flex items-center gap-2.5 font-medium"><i class="fa-regular fa-copy text-[#f5c66d] w-4 text-center"></i> Copiar</span>
+            <span class="text-[10px] text-[#b3b3b3]">Ctrl+C</span>
+        </button>
+        <button onclick="excelMenuCut()" class="w-full text-left px-4 py-2.5 hover:bg-[#353535] flex items-center justify-between transition">
+            <span class="flex items-center gap-2.5 font-medium"><i class="fa-solid fa-scissors text-red-400 w-4 text-center"></i> Cortar</span>
+            <span class="text-[10px] text-[#b3b3b3]">Ctrl+X</span>
+        </button>
+        <button onclick="excelMenuPaste()" class="w-full text-left px-4 py-2.5 hover:bg-[#353535] flex items-center justify-between transition">
+            <span class="flex items-center gap-2.5 font-medium"><i class="fa-regular fa-clipboard text-[#add8e6] w-4 text-center"></i> Pegar</span>
+            <span class="text-[10px] text-[#b3b3b3]">Ctrl+V</span>
+        </button>
+        <div class="border-t border-[#3a3a3a] my-1.5"></div>
+        <div class="px-4 py-1.5">
+            <span class="text-[10px] text-[#b3b3b3] uppercase font-bold tracking-wider block mb-2">Color de celdas</span>
+            <div class="flex items-center justify-between gap-1.5">
+                <button onclick="excelMenuColor('yellow')" class="w-8 h-7 rounded-lg bg-[#785206] border border-[#f5c66d] hover:scale-105 transition flex items-center justify-center text-[10px] font-bold text-white shadow" title="Amarillo">A</button>
+                <button onclick="excelMenuColor('green')" class="w-8 h-7 rounded-lg bg-[#13532d] border border-[#cde7ac] hover:scale-105 transition flex items-center justify-center text-[10px] font-bold text-white shadow" title="Verde">A</button>
+                <button onclick="excelMenuColor('blue')" class="w-8 h-7 rounded-lg bg-[#163e6c] border border-[#add8e6] hover:scale-105 transition flex items-center justify-center text-[10px] font-bold text-white shadow" title="Azul">A</button>
+                <button onclick="excelMenuColor('')" class="w-8 h-7 rounded-lg bg-[#1e1e1e] border border-[#555555] hover:scale-105 transition flex items-center justify-center text-xs text-[#b3b3b3] hover:text-white shadow" title="Quitar color">
+                    <i class="fa-solid fa-ban"></i>
+                </button>
             </div>
         </div>
     </div>
@@ -179,7 +230,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, getFirestore, collection, onSnapshot, doc, updateDoc, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         let parsedConfig;
         try { parsedConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null; } catch (e) {}
@@ -229,8 +280,10 @@
         let isUserAccordionOpen = false;
         let isPublishersAccordionOpen = false;
         let excelSel = { startR: -1, startC: -1, endR: -1, endC: -1, isDragging: false };
+        let internalClipboard = "";
         let publisherSearchQuery = '';
         let confirmActionCallback = null;
+        let warnedTerritoriesSession = new Set();
 
         const OpcionesLlamada = [
             "-", 
@@ -259,6 +312,86 @@
             overlay.classList.add('hidden');
             overlay.classList.remove('flex');
             confirmActionCallback = null;
+        };
+
+        window.openWarningModal = (message) => {
+            document.getElementById('warning-modal-msg').textContent = message;
+            const overlay = document.getElementById('custom-warning-overlay');
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
+        };
+
+        window.closeWarningModal = () => {
+            const overlay = document.getElementById('custom-warning-overlay');
+            overlay.classList.add('hidden');
+            overlay.classList.remove('flex');
+        };
+
+        // Guardado atómico en tiempo real para que múltiples PCs editen al mismo tiempo sin pisarse los datos
+        const safeUpdateTerritoryNumbers = async (tId, mutatorFn) => {
+            const tRef = doc(db, 'artifacts', appId, 'public', 'data', 'territories', tId);
+            const localTerritory = allTerritories.find(t => t.id === tId);
+
+            // Actualización optimista local inmediata para fluidez visual
+            if (localTerritory && localTerritory.numbers) {
+                const clonedNumbers = JSON.parse(JSON.stringify(localTerritory.numbers));
+                mutatorFn(clonedNumbers, localTerritory);
+                localTerritory.numbers = clonedNumbers;
+            }
+
+            try {
+                await runTransaction(db, async (transaction) => {
+                    const sfDoc = await transaction.get(tRef);
+                    if (!sfDoc.exists()) return;
+                    const data = sfDoc.data();
+                    const numbers = Array.isArray(data.numbers) ? [...data.numbers] : [];
+                    
+                    const extraUpdates = mutatorFn(numbers, data) || {};
+                    transaction.update(tRef, { numbers, ...extraUpdates });
+                });
+            } catch (err) {
+                // Respaldo automático si una PC pierde internet momentáneamente
+                if (localTerritory && localTerritory.numbers) {
+                    const extraUpdates = mutatorFn(localTerritory.numbers, localTerritory) || {};
+                    try {
+                        await updateDoc(tRef, { numbers: localTerritory.numbers, ...extraUpdates });
+                    } catch (e2) { console.error("Guardado en caché offline", e2); }
+                }
+            }
+        };
+
+        // Verifica si se está empezando un territorio nuevo cuando hay otro anterior sin terminar
+        const checkAndWarnUnfinishedTerritories = (currentTId) => {
+            if (!loggedInAppUser || warnedTerritoriesSession.has(currentTId)) return;
+            const myTerrs = allTerritories.filter(t => t.assignedTo === loggedInAppUser.id);
+            if (myTerrs.length < 2) return;
+
+            const currentTerr = myTerrs.find(t => t.id === currentTId);
+            if (!currentTerr) return;
+
+            const isNorte = loggedInAppUser?.username?.toLowerCase() === 'norte';
+            const currentProg = getProgress(currentTerr, isNorte);
+            
+            const hasAssigneeWork = (currentTerr.numbers || []).some(n => n.customAssignee && n.customAssignee.trim() !== '');
+            const isCurrentNew = currentProg.madeActions === 0 && !hasAssigneeWork;
+
+            if (!isCurrentNew) return;
+
+            let pendingMissingNumbers = 0;
+            myTerrs.forEach(t => {
+                if (t.id !== currentTId) {
+                    const p = getProgress(t, isNorte);
+                    if (!p.isComplete) {
+                        const missing = p.totalNumbers - p.madeActions;
+                        if (missing > 0) pendingMissingNumbers += missing;
+                    }
+                }
+            });
+
+            if (pendingMissingNumbers > 0) {
+                warnedTerritoriesSession.add(currentTId);
+                openWarningModal(`Antes de empezar este territorio, ten en cuenta que todavía quedan ${pendingMissingNumbers} por hacer. Muchas gracias!`);
+            }
         };
 
         document.getElementById('confirm-modal-yes').addEventListener('click', () => {
@@ -311,6 +444,39 @@
 
         window.renderApp = () => {
             try {
+                // Si el usuario en una PC está escribiendo activamente dentro de un campo de texto de Norte,
+                // actualizamos los valores de las demás celdas silenciosamente sin destruir su cursor activo.
+                const activeEl = document.activeElement;
+                const isTypingInExcel = activeEl && activeEl.classList.contains('excel-cell') && activeEl.tagName === 'INPUT' && activeEl.type === 'text' && currentViewTerritoryId && lastOpenedTerritoryId === currentViewTerritoryId;
+
+                if (isTypingInExcel) {
+                    const territory = allTerritories.find(t => t.id === currentViewTerritoryId);
+                    if (territory && territory.numbers) {
+                        territory.numbers.forEach((num, idx) => {
+                            const assignInput = document.querySelector(`input.excel-cell[data-row="${idx}"][data-col="1"]`);
+                            if (assignInput && assignInput !== activeEl) assignInput.value = num.customAssignee || '';
+
+                            const dateInput = document.querySelector(`input.excel-cell[data-row="${idx}"][data-col="2"]`);
+                            if (dateInput && dateInput !== activeEl) dateInput.value = num.date || '';
+
+                            const resSelect = document.querySelector(`select.excel-cell[data-row="${idx}"][data-col="3"]`);
+                            if (resSelect && resSelect !== activeEl) resSelect.value = num.result || '-';
+
+                            for (let c = 0; c <= 3; c++) {
+                                const td = document.querySelector(`.excel-td[data-row="${idx}"][data-col="${c}"]`);
+                                if (td) {
+                                    td.classList.remove('cell-bg-yellow', 'cell-bg-green', 'cell-bg-blue');
+                                    const colColor = num.cellColors && num.cellColors[`c${c}`] ? num.cellColors[`c${c}`] : (num.rowColor || '');
+                                    if (colColor === 'yellow') td.classList.add('cell-bg-yellow');
+                                    if (colColor === 'green') td.classList.add('cell-bg-green');
+                                    if (colColor === 'blue') td.classList.add('cell-bg-blue');
+                                }
+                            }
+                        });
+                        return;
+                    }
+                }
+
                 const navUserInfo = document.getElementById('nav-user-info');
                 const navUsername = document.getElementById('nav-username');
 
@@ -923,23 +1089,31 @@
                     const optHtml1 = OpcionesLlamada.map(opt => `<option value="${escapeHTML(opt)}" ${num.result === opt ? 'selected' : ''} class="text-[#ffffff] bg-[#2a2a2a]">${escapeHTML(opt)}</option>`).join('');
                     const safePhone = escapeHTML(num.phone);
                     const safeAssignee = escapeHTML(num.customAssignee || '');
+
+                    const getColColorClass = (c) => {
+                        const colColor = num.cellColors && num.cellColors[`c${c}`] ? num.cellColors[`c${c}`] : (num.rowColor || '');
+                        if (colColor === 'yellow') return 'cell-bg-yellow';
+                        if (colColor === 'green') return 'cell-bg-green';
+                        if (colColor === 'blue') return 'cell-bg-blue';
+                        return '';
+                    };
                     
                     return `
                     <tr id="excel-row-${idx}" class="bg-[#1e1e1e] hover:bg-[#252525]">
-                        <td class="excel-td border border-[#4a4a4a] py-1 px-1 font-bold text-[11px] sm:text-xs text-[#ffffff] whitespace-nowrap select-none transition-colors w-[80px] min-w-[80px] max-w-[80px] text-center overflow-hidden" data-row="${idx}" data-col="0" onmousedown="startExcelDrag(event, ${idx}, 0)" onmouseenter="enterExcelDrag(event, ${idx}, 0)" oncontextmenu="return false;">
+                        <td class="excel-td ${getColColorClass(0)} border border-[#4a4a4a] py-1 px-1 font-bold text-[11px] sm:text-xs text-[#ffffff] whitespace-nowrap select-none transition-colors w-[80px] min-w-[80px] max-w-[80px] text-center overflow-hidden" data-row="${idx}" data-col="0" onmousedown="startExcelDrag(event, ${idx}, 0)" onmouseenter="enterExcelDrag(event, ${idx}, 0)" oncontextmenu="openExcelContextMenu(event, ${idx}, 0)">
                             <div class="flex items-center justify-center">
                                 <span class="truncate">${safePhone}</span>
                                 <input type="hidden" class="excel-cell" data-row="${idx}" data-col="0" value="${safePhone}">
                             </div>
                         </td>
-                        <td class="excel-td border border-[#4a4a4a] p-0 relative transition-colors w-[90px] min-w-[90px] max-w-[90px]" data-row="${idx}" data-col="1" onmousedown="startExcelDrag(event, ${idx}, 1)" onmouseenter="enterExcelDrag(event, ${idx}, 1)" oncontextmenu="return false;">
-                            <input type="text" data-row="${idx}" data-col="1" value="${safeAssignee}" onchange="handleAssigneeChange('${territory.id}', ${idx}, this.value)" onpaste="handleExcelPaste(event, ${idx}, 1)" class="excel-cell w-full h-full min-h-[30px] bg-transparent px-1 py-0 outline-none focus:bg-[#3a3a3a] text-[#ffffff] text-[11px] sm:text-xs text-center cursor-cell transition-colors overflow-hidden" autocomplete="off" spellcheck="false">
+                        <td class="excel-td ${getColColorClass(1)} border border-[#4a4a4a] p-0 relative transition-colors w-[90px] min-w-[90px] max-w-[90px]" data-row="${idx}" data-col="1" onmousedown="startExcelDrag(event, ${idx}, 1)" onmouseenter="enterExcelDrag(event, ${idx}, 1)" oncontextmenu="openExcelContextMenu(event, ${idx}, 1)">
+                            <input type="text" data-row="${idx}" data-col="1" value="${safeAssignee}" onchange="handleAssigneeChange('${territory.id}', ${idx}, this.value)" onpaste="handleExcelPaste(event, ${idx}, 1)" class="excel-cell w-full h-full min-h-[30px] bg-transparent px-1 py-0 outline-none focus:bg-black/25 text-[#ffffff] text-[11px] sm:text-xs text-center cursor-cell transition-colors overflow-hidden" autocomplete="off" spellcheck="false">
                         </td>
-                        <td class="excel-td border border-[#4a4a4a] p-0 relative transition-colors" data-row="${idx}" data-col="2" onmousedown="startExcelDrag(event, ${idx}, 2)" onmouseenter="enterExcelDrag(event, ${idx}, 2)" oncontextmenu="return false;">
-                            <input type="date" id="date-${territory.id}-${idx}" data-row="${idx}" data-col="2" value="${escapeHTML(num.date || '')}" onchange="updateNumberField('${territory.id}', ${idx}, 'date', this.value)" onpaste="handleExcelPaste(event, ${idx}, 2)" class="excel-cell w-full h-full min-h-[30px] bg-transparent px-1 py-0 outline-none focus:bg-[#3a3a3a] text-[#ffffff] text-xs cursor-cell transition-colors">
+                        <td class="excel-td ${getColColorClass(2)} border border-[#4a4a4a] p-0 relative transition-colors" data-row="${idx}" data-col="2" onmousedown="startExcelDrag(event, ${idx}, 2)" onmouseenter="enterExcelDrag(event, ${idx}, 2)" oncontextmenu="openExcelContextMenu(event, ${idx}, 2)">
+                            <input type="date" id="date-${territory.id}-${idx}" data-row="${idx}" data-col="2" value="${escapeHTML(num.date || '')}" onchange="updateNumberField('${territory.id}', ${idx}, 'date', this.value)" onpaste="handleExcelPaste(event, ${idx}, 2)" class="excel-cell w-full h-full min-h-[30px] bg-transparent px-1 py-0 outline-none focus:bg-black/25 text-[#ffffff] text-xs cursor-cell transition-colors">
                         </td>
-                        <td class="excel-td border border-[#4a4a4a] p-0 relative transition-colors" data-row="${idx}" data-col="3" onmousedown="startExcelDrag(event, ${idx}, 3)" onmouseenter="enterExcelDrag(event, ${idx}, 3)" oncontextmenu="return false;">
-                            <select data-row="${idx}" data-col="3" onchange="updateResult('${territory.id}', ${idx}, 'result', this.value)" onpaste="handleExcelPaste(event, ${idx}, 3)" class="excel-cell w-full h-full min-h-[30px] bg-transparent px-1 py-0 outline-none focus:bg-[#3a3a3a] text-[#ffffff] text-[11px] cursor-cell appearance-none transition-colors">
+                        <td class="excel-td ${getColColorClass(3)} border border-[#4a4a4a] p-0 relative transition-colors" data-row="${idx}" data-col="3" onmousedown="startExcelDrag(event, ${idx}, 3)" onmouseenter="enterExcelDrag(event, ${idx}, 3)" oncontextmenu="openExcelContextMenu(event, ${idx}, 3)">
+                            <select data-row="${idx}" data-col="3" onchange="updateResult('${territory.id}', ${idx}, 'result', this.value)" onpaste="handleExcelPaste(event, ${idx}, 3)" class="excel-cell w-full h-full min-h-[30px] bg-transparent px-1 py-0 outline-none focus:bg-black/25 text-[#ffffff] text-[11px] cursor-cell appearance-none transition-colors">
                                 ${optHtml1}
                             </select>
                         </td>
@@ -1061,11 +1235,29 @@
             if (isNorte) updateExcelSelectionUI();
         };
 
-        // ---- LÓGICA DE SELECCIÓN MÚLTIPLE EXCEL (NORTE - Clic derecho o izquierdo) ----
+        // ---- LÓGICA DE SELECCIÓN MÚLTIPLE Y MENÚ CONTEXTUAL EXCEL (NORTE) ----
+        window.hideExcelContextMenu = () => {
+            const menu = document.getElementById('excel-context-menu');
+            if (menu) menu.classList.add('hidden');
+        };
+
         window.startExcelDrag = (e, r, c) => {
             if (e && e.button === 2) {
-                e.preventDefault();
+                const minR = Math.min(excelSel.startR, excelSel.endR);
+                const maxR = Math.max(excelSel.startR, excelSel.endR);
+                const minC = Math.min(excelSel.startC, excelSel.endC);
+                const maxC = Math.max(excelSel.startC, excelSel.endC);
+                const insideSelection = (minR !== -1 && r >= minR && r <= maxR && c >= minC && c <= maxC);
+                if (!insideSelection) {
+                    excelSel.startR = r;
+                    excelSel.startC = c;
+                    excelSel.endR = r;
+                    excelSel.endC = c;
+                    updateExcelSelectionUI();
+                }
+                return;
             }
+            hideExcelContextMenu();
             excelSel.isDragging = true;
             excelSel.startR = r;
             excelSel.startC = c;
@@ -1082,6 +1274,39 @@
             }
         };
 
+        window.openExcelContextMenu = (e, r, c) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const minR = Math.min(excelSel.startR, excelSel.endR);
+            const maxR = Math.max(excelSel.startR, excelSel.endR);
+            const minC = Math.min(excelSel.startC, excelSel.endC);
+            const maxC = Math.max(excelSel.startC, excelSel.endC);
+
+            if (minR === -1 || r < minR || r > maxR || c < minC || c > maxC) {
+                excelSel.startR = r;
+                excelSel.startC = c;
+                excelSel.endR = r;
+                excelSel.endC = c;
+                updateExcelSelectionUI();
+            }
+
+            const menu = document.getElementById('excel-context-menu');
+            if (!menu) return;
+            menu.classList.remove('hidden');
+
+            const menuWidth = 210;
+            const menuHeight = 205;
+            let posX = e.clientX;
+            let posY = e.clientY;
+
+            if (posX + menuWidth > window.innerWidth) posX = window.innerWidth - menuWidth - 10;
+            if (posY + menuHeight > window.innerHeight) posY = window.innerHeight - menuHeight - 10;
+
+            menu.style.left = `${Math.max(8, posX)}px`;
+            menu.style.top = `${Math.max(8, posY)}px`;
+        };
+
         window.updateExcelSelectionUI = () => {
             const minR = Math.min(excelSel.startR, excelSel.endR);
             const maxR = Math.max(excelSel.startR, excelSel.endR);
@@ -1092,12 +1317,188 @@
                 const r = parseInt(td.dataset.row);
                 const c = parseInt(td.dataset.col);
                 if (r >= minR && r <= maxR && c >= minC && c <= maxC) {
-                    td.classList.add('bg-[#1a4066]', 'excel-selected'); 
+                    td.classList.add('excel-selected'); 
                 } else {
-                    td.classList.remove('bg-[#1a4066]', 'excel-selected');
+                    td.classList.remove('excel-selected');
                 }
             });
         };
+
+        const getSelectedTSV = () => {
+            const minR = Math.min(excelSel.startR, excelSel.endR);
+            const maxR = Math.max(excelSel.startR, excelSel.endR);
+            const minC = Math.min(excelSel.startC, excelSel.endC);
+            const maxC = Math.max(excelSel.startC, excelSel.endC);
+            if (minR === -1) return '';
+
+            let tsv = '';
+            for (let r = minR; r <= maxR; r++) {
+                let rowData = [];
+                for (let c = minC; c <= maxC; c++) {
+                    const el = document.querySelector(`.excel-cell[data-row="${r}"][data-col="${c}"]`);
+                    rowData.push(el ? el.value : '');
+                }
+                tsv += rowData.join('\t') + (r === maxR ? '' : '\n');
+            }
+            return tsv;
+        };
+
+        const clearSelectedCellsInDB = async () => {
+            const minR = Math.min(excelSel.startR, excelSel.endR);
+            const maxR = Math.max(excelSel.startR, excelSel.endR);
+            const minC = Math.min(excelSel.startC, excelSel.endC);
+            const maxC = Math.max(excelSel.startC, excelSel.endC);
+            if (minR === -1 || !currentViewTerritoryId) return;
+
+            if (document.activeElement) document.activeElement.blur();
+
+            await safeUpdateTerritoryNumbers(currentViewTerritoryId, (numbers) => {
+                for (let r = minR; r <= maxR; r++) {
+                    if (r >= numbers.length) break;
+                    for (let c = minC; c <= maxC; c++) {
+                        if (c === 1) numbers[r].customAssignee = "";
+                        else if (c === 2) numbers[r].date = "";
+                        else if (c === 3) numbers[r].result = "-";
+                    }
+                }
+            });
+        };
+
+        const applyPasteTextToSelection = async (pasteData, startRow, startCol) => {
+            if (!pasteData || !currentViewTerritoryId) return;
+            checkAndWarnUnfinishedTerritories(currentViewTerritoryId);
+
+            const minR = Math.min(excelSel.startR, excelSel.endR);
+            const maxR = Math.max(excelSel.startR, excelSel.endR);
+            const minC = Math.min(excelSel.startC, excelSel.endC);
+            const maxC = Math.max(excelSel.startC, excelSel.endC);
+            const isMultiSelection = (minR !== -1) && ((minR !== maxR) || (minC !== maxC));
+
+            let rows = pasteData.split(/\r?\n/);
+            if (rows.length > 1 && rows[rows.length - 1] === "") rows.pop(); 
+
+            const now = new Date();
+            const localToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+            await safeUpdateTerritoryNumbers(currentViewTerritoryId, (numbers) => {
+                if (rows.length === 1 && !rows[0].includes('\t') && isMultiSelection) {
+                    const singleVal = rows[0].trim();
+                    for (let r = minR; r <= maxR; r++) {
+                        if (r >= numbers.length) break;
+                        for (let c = minC; c <= maxC; c++) {
+                            if (c === 1) {
+                                numbers[r].customAssignee = singleVal;
+                                if (singleVal !== '' && !numbers[r].date) numbers[r].date = localToday;
+                            } else if (c === 2) {
+                                numbers[r].date = singleVal;
+                            } else if (c === 3) {
+                                const matchedOpt = OpcionesLlamada.find(o => o.toLowerCase() === singleVal.toLowerCase());
+                                numbers[r].result = matchedOpt ? matchedOpt : singleVal;
+                            }
+                        }
+                    }
+                } else {
+                    const baseR = startRow !== undefined ? startRow : (minR !== -1 ? minR : 0);
+                    const baseC = startCol !== undefined ? startCol : (minC !== -1 ? minC : 1);
+
+                    for (let i = 0; i < rows.length; i++) {
+                        const cols = rows[i].split('\t');
+                        const targetR = baseR + i;
+                        if (targetR >= numbers.length) break;
+
+                        for (let j = 0; j < cols.length; j++) {
+                            const targetC = baseC + j;
+                            const val = cols[j].trim();
+
+                            if (targetC === 1) { 
+                                numbers[targetR].customAssignee = val;
+                                if (val !== '' && !numbers[targetR].date) numbers[targetR].date = localToday;
+                            } else if (targetC === 2) { 
+                                numbers[targetR].date = val;
+                            } else if (targetC === 3) { 
+                                const matchedOpt = OpcionesLlamada.find(o => o.toLowerCase() === val.toLowerCase());
+                                numbers[targetR].result = matchedOpt ? matchedOpt : val;
+                            }
+                        }
+                    }
+                }
+            });
+        };
+
+        window.excelMenuCopy = () => {
+            hideExcelContextMenu();
+            const tsv = getSelectedTSV();
+            if (tsv !== '') {
+                internalClipboard = tsv;
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(tsv).catch(() => {});
+                }
+                document.querySelectorAll('.excel-selected').forEach(td => {
+                    td.classList.add('opacity-50');
+                    setTimeout(() => td.classList.remove('opacity-50'), 150);
+                });
+            }
+        };
+
+        window.excelMenuCut = async () => {
+            hideExcelContextMenu();
+            const tsv = getSelectedTSV();
+            if (tsv !== '') {
+                internalClipboard = tsv;
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(tsv).catch(() => {});
+                }
+                await clearSelectedCellsInDB();
+            }
+        };
+
+        window.excelMenuPaste = async () => {
+            hideExcelContextMenu();
+            const minR = Math.min(excelSel.startR, excelSel.endR);
+            const minC = Math.min(excelSel.startC, excelSel.endC);
+            if (minR === -1) return;
+
+            let textToPaste = internalClipboard;
+            if (navigator.clipboard && navigator.clipboard.readText) {
+                try {
+                    const clipText = await navigator.clipboard.readText();
+                    if (clipText) textToPaste = clipText;
+                } catch (err) {}
+            }
+            if (textToPaste) {
+                await applyPasteTextToSelection(textToPaste, minR, minC);
+            }
+        };
+
+        window.excelMenuColor = async (colorName) => {
+            hideExcelContextMenu();
+            const minR = Math.min(excelSel.startR, excelSel.endR);
+            const maxR = Math.max(excelSel.startR, excelSel.endR);
+            const minC = Math.min(excelSel.startC, excelSel.endC);
+            const maxC = Math.max(excelSel.startC, excelSel.endC);
+            if (minR === -1 || !currentViewTerritoryId) return;
+
+            await safeUpdateTerritoryNumbers(currentViewTerritoryId, (numbers) => {
+                for (let r = minR; r <= maxR; r++) {
+                    if (r >= numbers.length) break;
+                    if (!numbers[r].cellColors) numbers[r].cellColors = {};
+                    for (let c = minC; c <= maxC; c++) {
+                        if (colorName) {
+                            numbers[r].cellColors[`c${c}`] = colorName;
+                        } else {
+                            delete numbers[r].cellColors[`c${c}`];
+                        }
+                    }
+                }
+            });
+        };
+
+        document.addEventListener('mousedown', (e) => {
+            const menu = document.getElementById('excel-context-menu');
+            if (menu && !menu.classList.contains('hidden') && !menu.contains(e.target)) {
+                hideExcelContextMenu();
+            }
+        });
 
         document.addEventListener('mouseup', () => {
             if (excelSel.isDragging) excelSel.isDragging = false;
@@ -1116,24 +1517,13 @@
 
             // Copiar bloque con Ctrl + C
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
-                let tsv = '';
-                for (let r = minR; r <= maxR; r++) {
-                    let rowData = [];
-                    for (let c = minC; c <= maxC; c++) {
-                        const el = document.querySelector(`.excel-cell[data-row="${r}"][data-col="${c}"]`);
-                        rowData.push(el ? el.value : '');
-                    }
-                    tsv += rowData.join('\t') + (r === maxR ? '' : '\n');
-                }
-                
-                if (tsv !== '') {
-                    navigator.clipboard.writeText(tsv).then(() => {
-                        document.querySelectorAll('.excel-selected').forEach(td => {
-                            td.classList.add('opacity-50');
-                            setTimeout(() => td.classList.remove('opacity-50'), 150);
-                        });
-                    });
-                }
+                excelMenuCopy();
+            }
+
+            // Cortar bloque con Ctrl + X
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'x') {
+                e.preventDefault();
+                await excelMenuCut();
             }
 
             // Borrar bloque de celdas seleccionadas con Delete o Backspace
@@ -1144,32 +1534,7 @@
                 
                 if (!isInputTyping) {
                     e.preventDefault();
-                    const territory = allTerritories.find(t => t.id === currentViewTerritoryId);
-                    if (!territory || !territory.numbers) return;
-
-                    let updated = false;
-                    for (let r = minR; r <= maxR; r++) {
-                        if (r >= territory.numbers.length) break;
-                        for (let c = minC; c <= maxC; c++) {
-                            if (c === 1) {
-                                territory.numbers[r].customAssignee = "";
-                                updated = true;
-                            } else if (c === 2) {
-                                territory.numbers[r].date = "";
-                                updated = true;
-                            } else if (c === 3) {
-                                territory.numbers[r].result = "-";
-                                updated = true;
-                            }
-                        }
-                    }
-
-                    if (updated) {
-                        if (activeEl) activeEl.blur();
-                        try {
-                            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'territories', currentViewTerritoryId), { numbers: territory.numbers });
-                        } catch (err) { console.error(err); }
-                    }
+                    await clearSelectedCellsInDB();
                 }
             }
         });
@@ -1178,6 +1543,7 @@
             const pasteData = (e.clipboardData || window.clipboardData).getData('text');
             if (!pasteData) return;
 
+            internalClipboard = pasteData;
             const minR = Math.min(excelSel.startR, excelSel.endR);
             const maxR = Math.max(excelSel.startR, excelSel.endR);
             const minC = Math.min(excelSel.startC, excelSel.endC);
@@ -1185,79 +1551,25 @@
             const isMultiSelection = (minR !== -1) && ((minR !== maxR) || (minC !== maxC));
 
             if (pasteData.includes('\t') || pasteData.includes('\n') || isMultiSelection) {
-                e.preventDefault(); 
-                
-                const territory = allTerritories.find(t => t.id === currentViewTerritoryId);
-                if (!territory || !territory.numbers) return;
-
-                let rows = pasteData.split(/\r?\n/);
-                if (rows.length > 1 && rows[rows.length - 1] === "") rows.pop(); 
-
-                const now = new Date();
-                const localToday = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-                let updated = false;
-
-                if (rows.length === 1 && !rows[0].includes('\t') && isMultiSelection) {
-                    const singleVal = rows[0].trim();
-                    for (let r = minR; r <= maxR; r++) {
-                        if (r >= territory.numbers.length) break;
-                        for (let c = minC; c <= maxC; c++) {
-                            if (c === 1) {
-                                territory.numbers[r].customAssignee = singleVal;
-                                if (singleVal !== '' && !territory.numbers[r].date) territory.numbers[r].date = localToday;
-                                updated = true;
-                            }
-                        }
-                    }
-                } else {
-                    for (let i = 0; i < rows.length; i++) {
-                        const cols = rows[i].split('\t');
-                        const targetR = startRow + i;
-                        if (targetR >= territory.numbers.length) break;
-
-                        for (let j = 0; j < cols.length; j++) {
-                            const targetC = startCol + j;
-                            const val = cols[j].trim();
-
-                            if (targetC === 1) { 
-                                territory.numbers[targetR].customAssignee = val;
-                                if (val !== '' && !territory.numbers[targetR].date) territory.numbers[targetR].date = localToday;
-                                updated = true;
-                            } else if (targetC === 2) { 
-                                territory.numbers[targetR].date = val;
-                                updated = true;
-                            } else if (targetC === 3) { 
-                                const matchedOpt = OpcionesLlamada.find(o => o.toLowerCase() === val.toLowerCase());
-                                territory.numbers[targetR].result = matchedOpt ? matchedOpt : val;
-                                updated = true;
-                            }
-                        }
-                    }
-                }
-
-                if (updated) {
-                    try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'territories', currentViewTerritoryId), { numbers: territory.numbers }); } 
-                    catch (err) { console.error(err); }
-                }
+                e.preventDefault();
+                await applyPasteTextToSelection(pasteData, startRow, startCol);
             }
         };
 
         window.handleAssigneeChange = async (tId, numIndex, value) => {
-            const territory = allTerritories.find(t => t.id === tId);
-            if (!territory || !territory.numbers) return;
-            
-            territory.numbers[numIndex].customAssignee = value;
-            
-            if (value.trim() !== '' && !territory.numbers[numIndex].date) {
-                const now = new Date();
-                const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-                territory.numbers[numIndex].date = today;
-                const dateInput = document.getElementById(`date-${tId}-${numIndex}`);
-                if(dateInput) dateInput.value = today;
-            }
-            
-            try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'territories', tId), { numbers: territory.numbers }); } 
-            catch (err) { console.error(err); }
+            checkAndWarnUnfinishedTerritories(tId);
+            const now = new Date();
+            const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+            await safeUpdateTerritoryNumbers(tId, (numbers) => {
+                if (!numbers[numIndex]) return;
+                numbers[numIndex].customAssignee = value;
+                if (value.trim() !== '' && !numbers[numIndex].date) {
+                    numbers[numIndex].date = today;
+                    const dateInput = document.getElementById(`date-${tId}-${numIndex}`);
+                    if (dateInput) dateInput.value = today;
+                }
+            });
         };
 
         // ---- LÓGICA DEL BOTTOM SHEET ----
@@ -1407,10 +1719,15 @@
             loggedInAppUser = null; 
             currentViewTerritoryId = null; 
             lastOpenedTerritoryId = null;
+            warnedTerritoriesSession.clear();
             try { localStorage.removeItem('savedSessionId'); } catch(e){}
             renderApp(); 
         };
-        window.openTerritory = (id) => { currentViewTerritoryId = id; renderApp(); };
+        window.openTerritory = (id) => { 
+            currentViewTerritoryId = id; 
+            renderApp(); 
+            checkAndWarnUnfinishedTerritories(id);
+        };
         window.closeTerritory = () => { currentViewTerritoryId = null; lastOpenedTerritoryId = null; renderApp(); };
 
         window.unassignTerritory = (tId, tName) => {
@@ -1424,11 +1741,11 @@
         window.cleanNorteNames = (tId, tName) => {
             openConfirmModal(
                 `Limpiar nombres en Terr. ${tName}`,
-                `¿Deseas borrar todos los nombres precargados en la columna "Asignado a" del Territorio ${tName}? Los resultados de llamadas y fechas no se borrarán.`,
+                `¿Deseas borrar todos los nombres precargados y colores en la columna "Asignado a" del Territorio ${tName}? Los resultados de llamadas y fechas no se borrarán.`,
                 async () => {
                     const territory = allTerritories.find(t => t.id === tId);
                     if (!territory || !territory.numbers) return;
-                    const cleanedNumbers = territory.numbers.map(n => ({ ...n, customAssignee: "" }));
+                    const cleanedNumbers = territory.numbers.map(n => ({ ...n, customAssignee: "", cellColors: {} }));
                     try {
                         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'territories', tId), { numbers: cleanedNumbers });
                     } catch (err) { console.error(err); }
@@ -1471,6 +1788,7 @@
                     updateData.numbers = (territory.numbers || []).map(n => ({
                         ...n,
                         customAssignee: "",
+                        cellColors: {},
                         result: "-",
                         result2: "-",
                         checked1: false,
@@ -1489,6 +1807,7 @@
                         updateData.numbers = (territory.numbers || []).map(n => ({
                             ...n,
                             customAssignee: "",
+                            cellColors: {},
                             result: "-",
                             result2: "-",
                             checked1: false,
@@ -1505,69 +1824,62 @@
         };
 
         window.updateResult = async (tId, numIndex, field, newResult) => {
-            const territory = allTerritories.find(t => t.id === tId);
-            if (!territory || !territory.numbers) return;
-            
-            territory.numbers[numIndex][field] = newResult;
+            if (newResult !== "-") checkAndWarnUnfinishedTerritories(tId);
 
-            if (newResult !== "-") {
-                const now = new Date();
-                const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-                if (field === 'result') territory.numbers[numIndex].date = today;
-                if (field === 'result2') territory.numbers[numIndex].date2 = today;
-            } else {
-                if (field === 'result') territory.numbers[numIndex].date = "";
-                if (field === 'result2') territory.numbers[numIndex].date2 = "";
-            }
+            const now = new Date();
+            const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-            const assignedUser = allUsers.find(u => u.id === territory.assignedTo);
-            const isNorteAssignee = assignedUser && assignedUser?.username?.toLowerCase() === 'norte';
+            await safeUpdateTerritoryNumbers(tId, (numbers, docData) => {
+                if (!numbers[numIndex]) return {};
+                numbers[numIndex][field] = newResult;
 
-            const prog = getProgress(territory, isNorteAssignee);
-
-            let newStatus = territory.assignedTo ? 'En curso' : 'Pendiente';
-            let completedDate = territory.completedDate || null;
-            let history = Array.isArray(territory.history) ? [...territory.history] : [];
-
-            if (prog.isComplete) {
-                newStatus = 'Completado';
-                if (territory.status !== 'Completado' || !completedDate) {
-                    completedDate = new Date().toISOString();
+                if (newResult !== "-") {
+                    if (field === 'result') numbers[numIndex].date = today;
+                    if (field === 'result2') numbers[numIndex].date2 = today;
+                } else {
+                    if (field === 'result') numbers[numIndex].date = "";
+                    if (field === 'result2') numbers[numIndex].date2 = "";
                 }
-                if (territory.assignedTo) {
-                    const existingIdx = history.findIndex(h => h.userId === territory.assignedTo && h.assignedDate === territory.assignedDate);
-                    if (existingIdx === -1) {
-                        history.push({
-                            userId: territory.assignedTo,
-                            username: assignedUser ? assignedUser.username : '',
-                            assignedDate: territory.assignedDate || completedDate,
-                            completedDate: completedDate
-                        });
-                    } else {
-                        history[existingIdx].completedDate = completedDate;
+
+                const assignedUser = allUsers.find(u => u.id === docData.assignedTo);
+                const isNorteAssignee = assignedUser && assignedUser?.username?.toLowerCase() === 'norte';
+
+                const prog = getProgress({ numbers }, isNorteAssignee);
+
+                let newStatus = docData.assignedTo ? 'En curso' : 'Pendiente';
+                let completedDate = docData.completedDate || null;
+                let history = Array.isArray(docData.history) ? [...docData.history] : [];
+
+                if (prog.isComplete) {
+                    newStatus = 'Completado';
+                    if (docData.status !== 'Completado' || !completedDate) {
+                        completedDate = new Date().toISOString();
                     }
+                    if (docData.assignedTo) {
+                        const existingIdx = history.findIndex(h => h.userId === docData.assignedTo && h.assignedDate === docData.assignedDate);
+                        if (existingIdx === -1) {
+                            history.push({
+                                userId: docData.assignedTo,
+                                username: assignedUser ? assignedUser.username : '',
+                                assignedDate: docData.assignedDate || completedDate,
+                                completedDate: completedDate
+                            });
+                        } else {
+                            history[existingIdx].completedDate = completedDate;
+                        }
+                    }
+                } else {
+                    if (docData.status === 'Completado') completedDate = null;
                 }
-            } else {
-                if (territory.status === 'Completado') completedDate = null;
-            }
 
-            try { 
-                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'territories', tId), { 
-                    numbers: territory.numbers,
-                    status: newStatus,
-                    completedDate: completedDate,
-                    history: history
-                }); 
-            } 
-            catch (err) { console.error("Update guardado en caché offline", err); }
+                return { status: newStatus, completedDate, history };
+            });
         };
 
         window.updateNumberField = async (tId, numIndex, field, value) => {
-            const territory = allTerritories.find(t => t.id === tId);
-            if (!territory || !territory.numbers) return;
-            territory.numbers[numIndex][field] = value;
-            try { await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'territories', tId), { numbers: territory.numbers }); } 
-            catch (err) { console.error(err); }
+            await safeUpdateTerritoryNumbers(tId, (numbers) => {
+                if (numbers[numIndex]) numbers[numIndex][field] = value;
+            });
         };
 
         // ---- INICIALIZACIÓN Y SUSCRIPCIONES A FIREBASE ----
