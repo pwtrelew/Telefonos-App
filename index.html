@@ -314,8 +314,8 @@
             confirmActionCallback = null;
         };
 
-        window.openWarningModal = (message) => {
-            document.getElementById('warning-modal-msg').textContent = message;
+        window.openWarningModal = (htmlMessage) => {
+            document.getElementById('warning-modal-msg').innerHTML = htmlMessage;
             const overlay = document.getElementById('custom-warning-overlay');
             overlay.classList.remove('hidden');
             overlay.classList.add('flex');
@@ -378,19 +378,24 @@
             if (!isCurrentNew) return;
 
             let pendingMissingNumbers = 0;
+            let pendingTerrNames = [];
             myTerrs.forEach(t => {
                 if (t.id !== currentTId) {
                     const p = getProgress(t, isNorte);
                     if (!p.isComplete) {
                         const missing = p.totalNumbers - p.madeActions;
-                        if (missing > 0) pendingMissingNumbers += missing;
+                        if (missing > 0) {
+                            pendingMissingNumbers += missing;
+                            pendingTerrNames.push(escapeHTML(t.name));
+                        }
                     }
                 }
             });
 
             if (pendingMissingNumbers > 0) {
                 warnedTerritoriesSession.add(currentTId);
-                openWarningModal(`Antes de empezar este territorio, ten en cuenta que todavía quedan ${pendingMissingNumbers} por hacer. Muchas gracias!`);
+                const terrLabel = pendingTerrNames.join(', ');
+                openWarningModal(`Antes de empezar este territorio, ten en cuenta que todavía quedan <strong class="text-[#f5c66d] font-extrabold">${pendingMissingNumbers}</strong> por hacer del territorio <strong class="text-[#f5c66d] font-extrabold">${terrLabel}</strong>. Muchas gracias!`);
             }
         };
 
