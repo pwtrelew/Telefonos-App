@@ -1,4 +1,4 @@
-const CACHE_NAME = 'telefonos-app-v11'; // Subimos a v11 para que se actualice automático sin perder ningún dato
+const CACHE_NAME = 'telefonos-app-v13'; // Subimos a v13 para que se actualice automático sin perder ningún dato
 const urlsToCache = [
     './',
     './index.html',
